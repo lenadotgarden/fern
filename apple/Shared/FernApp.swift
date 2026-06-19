@@ -2,8 +2,19 @@
 //  FernApp.swift
 //  Fern
 //
-//  Created by Alexandre Le Poulichet on 19/06/2026.
+//  Created by Léna Le Poulichet on 19/06/2026.
 //
 
-@main
 import Foundation
+import SwiftUI
+
+@main
+struct FernApp: App {
+    var body: some Scene {
+        WindowGroup {
+            Text("Hello fern 🌿")
+                .font(.largeTitle)
+                .padding()
+        }
+    }
+}

@@ -1,15 +1,25 @@
 use rusqlite::{params, Connection, Result as SqlResult};
 
-use crate::models::{Area, Project, ProjectStatus, Task, TaskStatus};
+use crate::models::{Area, Project, ProjectStatus, ScheduledDate, Task, TaskStatus};
 
-/// Wraps a SQLite connection and exposes the fern database operations.
+// Column lists — defined once so every SELECT is consistent and easy to update.
+const TASK_SELECT: &str =
+    "SELECT id, project_id, area_id, title, notes, scheduled_date, deadline, \
+     estimated_time, spent_time, status, is_trashed FROM tasks";
+const PROJECT_SELECT: &str =
+    "SELECT id, area_id, title, notes, scheduled_date, deadline, status, is_trashed FROM projects";
+const AREA_SELECT: &str = "SELECT id, title, notes, is_archived FROM areas";
+
+/// Wraps a SQLite connection and exposes all fern database operations.
+///
+/// The connection is kept private; all access goes through typed methods.
 pub struct Database {
     conn: Connection,
 }
 
 impl Database {
-    /// Opens (or creates) a SQLite database at the given path, then applies
-    /// the schema migration so all tables are ready to use.
+    /// Opens (or creates) a persistent SQLite database at `path` and
+    /// initialises the schema.
     pub fn new(path: &str) -> SqlResult<Self> {
         let conn = Connection::open(path)?;
         let db = Database { conn };
@@ -17,7 +27,8 @@ impl Database {
         Ok(db)
     }
 
-    /// Opens an in-memory database. Useful for tests.
+    /// Opens an in-memory database. Every call returns a fresh, isolated
+    /// database — ideal for tests.
     pub fn new_in_memory() -> SqlResult<Self> {
         let conn = Connection::open_in_memory()?;
         let db = Database { conn };
@@ -25,87 +36,107 @@ impl Database {
         Ok(db)
     }
 
-    /// Creates all tables if they do not already exist.
-    /// Enabling WAL mode and foreign-key enforcement on every connection.
+    /// Creates all tables and indexes if they do not already exist.
+    ///
+    /// Design notes:
+    /// - WAL mode: reads and writes can proceed concurrently (crucial for a
+    ///   mobile app where the UI reads while the sync engine writes).
+    /// - Foreign keys ON: SQLite skips FK checks by default; we always enable
+    ///   them to catch orphaned references at the database level.
+    /// - Indexes: the most filtered columns (status, is_trashed, scheduled_date,
+    ///   FKs) get their own index so view queries stay fast as the dataset grows.
     fn initialize_schema(&self) -> SqlResult<()> {
         self.conn.execute_batch(
             "
-            PRAGMA journal_mode=WAL;
-            PRAGMA foreign_keys=ON;
+            PRAGMA journal_mode = WAL;
+            PRAGMA foreign_keys = ON;
 
             CREATE TABLE IF NOT EXISTS areas (
-                id    TEXT PRIMARY KEY NOT NULL,
-                title TEXT NOT NULL,
-                notes TEXT NOT NULL DEFAULT ''
+                id          TEXT    PRIMARY KEY NOT NULL,
+                title       TEXT    NOT NULL,
+                notes       TEXT    NOT NULL DEFAULT '',
+                is_archived INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS projects (
-                id       TEXT PRIMARY KEY NOT NULL,
-                area_id  TEXT REFERENCES areas(id),
-                title    TEXT NOT NULL,
-                notes    TEXT NOT NULL DEFAULT '',
-                deadline TEXT,
-                status   TEXT NOT NULL DEFAULT 'Active'
+                id             TEXT    PRIMARY KEY NOT NULL,
+                area_id        TEXT    REFERENCES areas(id),
+                title          TEXT    NOT NULL,
+                notes          TEXT    NOT NULL DEFAULT '',
+                scheduled_date TEXT,
+                deadline       TEXT,
+                status         TEXT    NOT NULL DEFAULT 'Todo',
+                is_trashed     INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS tasks (
-                id             TEXT PRIMARY KEY NOT NULL,
-                project_id     TEXT REFERENCES projects(id),
-                area_id        TEXT REFERENCES areas(id),
-                title          TEXT NOT NULL,
-                notes          TEXT NOT NULL DEFAULT '',
-                start_date     TEXT,
+                id             TEXT    PRIMARY KEY NOT NULL,
+                project_id     TEXT    REFERENCES projects(id),
+                area_id        TEXT    REFERENCES areas(id),
+                title          TEXT    NOT NULL,
+                notes          TEXT    NOT NULL DEFAULT '',
+                scheduled_date TEXT,
                 deadline       TEXT,
                 estimated_time INTEGER,
                 spent_time     INTEGER,
-                status         TEXT NOT NULL DEFAULT 'Inbox'
+                status         TEXT    NOT NULL DEFAULT 'Todo',
+                is_trashed     INTEGER NOT NULL DEFAULT 0
             );
+
+            -- Indexes for the view queries fired by the app on every screen load.
+            CREATE INDEX IF NOT EXISTS idx_tasks_status         ON tasks(status);
+            CREATE INDEX IF NOT EXISTS idx_tasks_is_trashed     ON tasks(is_trashed);
+            CREATE INDEX IF NOT EXISTS idx_tasks_scheduled_date ON tasks(scheduled_date);
+            CREATE INDEX IF NOT EXISTS idx_tasks_project_id     ON tasks(project_id);
+            CREATE INDEX IF NOT EXISTS idx_tasks_area_id        ON tasks(area_id);
+            CREATE INDEX IF NOT EXISTS idx_projects_status      ON projects(status);
+            CREATE INDEX IF NOT EXISTS idx_projects_is_trashed  ON projects(is_trashed);
+            CREATE INDEX IF NOT EXISTS idx_projects_area_id     ON projects(area_id);
         ",
         )
     }
 
     // =========================================================================
-    // Area CRUD
+    // Area — CRUD & Operations
     // =========================================================================
 
-    /// Inserts a new Area into the database.
+    /// Inserts a new Area.
     pub fn create_area(&self, area: &Area) -> SqlResult<()> {
         self.conn.execute(
-            "INSERT INTO areas (id, title, notes) VALUES (?1, ?2, ?3)",
-            params![area.id, area.title, area.notes],
+            "INSERT INTO areas (id, title, notes, is_archived) VALUES (?1, ?2, ?3, ?4)",
+            params![area.id, area.title, area.notes, area.is_archived],
         )?;
         Ok(())
     }
 
-    /// Returns all Areas.
-    pub fn get_all_areas(&self) -> SqlResult<Vec<Area>> {
-        let mut stmt = self.conn.prepare("SELECT id, title, notes FROM areas")?;
-        let rows = stmt.query_map([], |row| {
-            Ok(Area {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                notes: row.get(2)?,
-            })
-        })?;
-        rows.collect()
-    }
-
-    /// Returns a single Area by its ID.
+    /// Returns a single Area by ID, or `None` if not found.
     pub fn get_area(&self, id: &str) -> SqlResult<Option<Area>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, title, notes FROM areas WHERE id = ?1")?;
-        let mut rows = stmt.query_map(params![id], |row| {
-            Ok(Area {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                notes: row.get(2)?,
-            })
-        })?;
-        rows.next().transpose()
+            .prepare(&format!("{} WHERE id = ?1", AREA_SELECT))?;
+        let mut rows = stmt.query_map(params![id], map_area_row)?;
+        let result = rows.next().transpose();
+        result
+    }
+
+    /// Returns all non-archived areas — use this for the sidebar.
+    pub fn get_active_areas(&self) -> SqlResult<Vec<Area>> {
+        let mut stmt = self
+            .conn
+            .prepare(&format!("{} WHERE is_archived = 0", AREA_SELECT))?;
+        let rows = stmt.query_map([], map_area_row)?.collect();
+        rows
+    }
+
+    /// Returns every area, including archived ones — use for settings screens.
+    pub fn get_all_areas(&self) -> SqlResult<Vec<Area>> {
+        let mut stmt = self.conn.prepare(AREA_SELECT)?;
+        let rows = stmt.query_map([], map_area_row)?.collect();
+        rows
     }
 
     /// Updates the title and notes of an existing Area.
+    /// Returns the number of rows affected (0 if the ID does not exist).
     pub fn update_area(&self, area: &Area) -> SqlResult<usize> {
         self.conn.execute(
             "UPDATE areas SET title = ?1, notes = ?2 WHERE id = ?3",
@@ -113,451 +144,427 @@ impl Database {
         )
     }
 
-    /// Hard-deletes an Area (use with caution; prefer updating status on
-    /// child projects to 'Trash' for soft-deletes).
+    /// Hides an Area from the sidebar without deleting any data.
+    pub fn archive_area(&self, id: &str) -> SqlResult<usize> {
+        self.conn.execute(
+            "UPDATE areas SET is_archived = 1 WHERE id = ?1",
+            params![id],
+        )
+    }
+
+    /// Restores an archived Area to the sidebar.
+    pub fn unarchive_area(&self, id: &str) -> SqlResult<usize> {
+        self.conn.execute(
+            "UPDATE areas SET is_archived = 0 WHERE id = ?1",
+            params![id],
+        )
+    }
+
+    /// Hard-deletes an Area. Prefer `archive_area` in most cases — a hard
+    /// delete will also cascade-orphan any child projects and tasks if FK
+    /// constraints are not enforced at call time.
     pub fn delete_area(&self, id: &str) -> SqlResult<usize> {
         self.conn
             .execute("DELETE FROM areas WHERE id = ?1", params![id])
     }
 
     // =========================================================================
-    // Project CRUD
+    // Project — CRUD & Operations
     // =========================================================================
 
-    /// Inserts a new Project into the database.
+    /// Inserts a new Project.
     pub fn create_project(&self, project: &Project) -> SqlResult<()> {
         self.conn.execute(
-            "INSERT INTO projects (id, area_id, title, notes, deadline, status)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO projects (id, area_id, title, notes, scheduled_date, deadline, status, is_trashed)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 project.id,
                 project.area_id,
                 project.title,
                 project.notes,
+                project.scheduled_date.as_ref().map(|d| d.to_db_string()),
                 project.deadline.map(|d| d.to_string()),
                 project.status.as_str(),
+                project.is_trashed,
             ],
         )?;
         Ok(())
     }
 
-    /// Returns all Projects.
-    pub fn get_all_projects(&self) -> SqlResult<Vec<Project>> {
+    /// Returns a single Project by ID, or `None` if not found.
+    pub fn get_project(&self, id: &str) -> SqlResult<Option<Project>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, area_id, title, notes, deadline, status FROM projects")?;
-        let rows = stmt.query_map([], |row| {
-            let deadline_str: Option<String> = row.get(4)?;
-            let status_str: String = row.get(5)?;
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                deadline_str,
-                status_str,
-            ))
-        })?;
-
-        let mut projects = Vec::new();
-        for row in rows {
-            let (id, area_id, title, notes, deadline_str, status_str) = row?;
-            let deadline = deadline_str
-                .as_deref()
-                .map(|s| s.parse::<chrono::NaiveDate>())
-                .transpose()
-                .map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        4,
-                        rusqlite::types::Type::Text,
-                        Box::new(e),
-                    )
-                })?;
-            let status = status_str.parse::<ProjectStatus>().map_err(|e| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    5,
-                    rusqlite::types::Type::Text,
-                    Box::new(ParseError(e)),
-                )
-            })?;
-            projects.push(Project {
-                id,
-                area_id,
-                title,
-                notes,
-                deadline,
-                status,
-            });
-        }
-        Ok(projects)
+            .prepare(&format!("{} WHERE id = ?1", PROJECT_SELECT))?;
+        let mut rows = stmt.query_map(params![id], map_project_row)?;
+        let result = rows.next().transpose();
+        result
     }
 
-    /// Returns a single Project by its ID.
-    pub fn get_project(&self, id: &str) -> SqlResult<Option<Project>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, area_id, title, notes, deadline, status FROM projects WHERE id = ?1",
-        )?;
-        let mut rows = stmt.query_map(params![id], |row| {
-            let deadline_str: Option<String> = row.get(4)?;
-            let status_str: String = row.get(5)?;
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                deadline_str,
-                status_str,
-            ))
-        })?;
-
-        match rows.next() {
-            None => Ok(None),
-            Some(row) => {
-                let (id, area_id, title, notes, deadline_str, status_str) = row?;
-                let deadline = deadline_str
-                    .as_deref()
-                    .map(|s| s.parse::<chrono::NaiveDate>())
-                    .transpose()
-                    .map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            4,
-                            rusqlite::types::Type::Text,
-                            Box::new(e),
-                        )
-                    })?;
-                let status = status_str.parse::<ProjectStatus>().map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        5,
-                        rusqlite::types::Type::Text,
-                        Box::new(ParseError(e)),
-                    )
-                })?;
-                Ok(Some(Project {
-                    id,
-                    area_id,
-                    title,
-                    notes,
-                    deadline,
-                    status,
-                }))
-            }
-        }
+    /// Returns every project (all statuses, including trashed).
+    pub fn get_all_projects(&self) -> SqlResult<Vec<Project>> {
+        let mut stmt = self.conn.prepare(PROJECT_SELECT)?;
+        let rows = stmt.query_map([], map_project_row)?.collect();
+        rows
     }
 
     /// Updates all mutable fields of an existing Project.
+    /// Returns the number of rows affected (0 if the ID does not exist).
     pub fn update_project(&self, project: &Project) -> SqlResult<usize> {
         self.conn.execute(
             "UPDATE projects SET area_id = ?1, title = ?2, notes = ?3,
-             deadline = ?4, status = ?5 WHERE id = ?6",
+             scheduled_date = ?4, deadline = ?5, status = ?6, is_trashed = ?7
+             WHERE id = ?8",
             params![
                 project.area_id,
                 project.title,
                 project.notes,
+                project.scheduled_date.as_ref().map(|d| d.to_db_string()),
                 project.deadline.map(|d| d.to_string()),
                 project.status.as_str(),
+                project.is_trashed,
                 project.id,
             ],
+        )
+    }
+
+    /// Marks a Project as Done (moves it to the Logbook).
+    pub fn complete_project(&self, id: &str) -> SqlResult<usize> {
+        self.conn.execute(
+            "UPDATE projects SET status = 'Done' WHERE id = ?1",
+            params![id],
+        )
+    }
+
+    /// Marks a Project as Cancelled (moves it to the Logbook).
+    pub fn cancel_project(&self, id: &str) -> SqlResult<usize> {
+        self.conn.execute(
+            "UPDATE projects SET status = 'Cancelled' WHERE id = ?1",
+            params![id],
         )
     }
 
     /// Soft-deletes a Project by moving it to Trash.
+    /// Does NOT change the status — a Done project can also be in Trash.
     pub fn trash_project(&self, id: &str) -> SqlResult<usize> {
         self.conn.execute(
-            "UPDATE projects SET status = 'Trash' WHERE id = ?1",
+            "UPDATE projects SET is_trashed = 1 WHERE id = ?1",
             params![id],
         )
     }
 
-    /// Returns all Projects matching a given status.
-    pub fn get_projects_by_status(&self, status: &ProjectStatus) -> SqlResult<Vec<Project>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, area_id, title, notes, deadline, status FROM projects WHERE status = ?1",
-        )?;
-        let rows = stmt.query_map(params![status.as_str()], |row| {
-            let deadline_str: Option<String> = row.get(4)?;
-            let status_str: String = row.get(5)?;
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                deadline_str,
-                status_str,
-            ))
-        })?;
+    /// Recovers a trashed Project, making it visible again in its previous view.
+    pub fn restore_project(&self, id: &str) -> SqlResult<usize> {
+        self.conn.execute(
+            "UPDATE projects SET is_trashed = 0 WHERE id = ?1",
+            params![id],
+        )
+    }
 
-        let mut projects = Vec::new();
-        for row in rows {
-            let (id, area_id, title, notes, deadline_str, status_str) = row?;
-            let deadline = deadline_str
-                .as_deref()
-                .map(|s| s.parse::<chrono::NaiveDate>())
-                .transpose()
-                .map_err(|e| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        4,
-                        rusqlite::types::Type::Text,
-                        Box::new(e),
-                    )
-                })?;
-            let status = status_str.parse::<ProjectStatus>().map_err(|e| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    5,
-                    rusqlite::types::Type::Text,
-                    Box::new(ParseError(e)),
-                )
-            })?;
-            projects.push(Project {
-                id,
-                area_id,
-                title,
-                notes,
-                deadline,
-                status,
-            });
-        }
-        Ok(projects)
+    // --- Project Views ---
+
+    /// **Anytime** — Todo projects with no scheduled date, not trashed.
+    /// (Projects with a date appear in the Calendar/Upcoming views instead.)
+    pub fn get_anytime_projects(&self) -> SqlResult<Vec<Project>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "{} WHERE status = 'Todo' AND is_trashed = 0 AND scheduled_date IS NULL",
+            PROJECT_SELECT
+        ))?;
+        let rows = stmt.query_map([], map_project_row)?.collect();
+        rows
+    }
+
+    /// **Someday** — Todo projects deferred indefinitely, not trashed.
+    pub fn get_someday_projects(&self) -> SqlResult<Vec<Project>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "{} WHERE status = 'Todo' AND is_trashed = 0 AND scheduled_date = 'someday'",
+            PROJECT_SELECT
+        ))?;
+        let rows = stmt.query_map([], map_project_row)?.collect();
+        rows
+    }
+
+    /// **Logbook** — Done or Cancelled projects, not trashed.
+    pub fn get_logbook_projects(&self) -> SqlResult<Vec<Project>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "{} WHERE status IN ('Done', 'Cancelled') AND is_trashed = 0",
+            PROJECT_SELECT
+        ))?;
+        let rows = stmt.query_map([], map_project_row)?.collect();
+        rows
+    }
+
+    /// **Trash** — soft-deleted projects.
+    pub fn get_trashed_projects(&self) -> SqlResult<Vec<Project>> {
+        let mut stmt = self
+            .conn
+            .prepare(&format!("{} WHERE is_trashed = 1", PROJECT_SELECT))?;
+        let rows = stmt.query_map([], map_project_row)?.collect();
+        rows
     }
 
     // =========================================================================
-    // Task CRUD
+    // Task — CRUD & Operations
     // =========================================================================
 
-    /// Inserts a new Task into the database.
+    /// Inserts a new Task.
     pub fn create_task(&self, task: &Task) -> SqlResult<()> {
         self.conn.execute(
-            "INSERT INTO tasks (id, project_id, area_id, title, notes,
-             start_date, deadline, estimated_time, spent_time, status)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            "INSERT INTO tasks (id, project_id, area_id, title, notes, scheduled_date,
+             deadline, estimated_time, spent_time, status, is_trashed)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 task.id,
                 task.project_id,
                 task.area_id,
                 task.title,
                 task.notes,
-                task.start_date.map(|d| d.to_string()),
+                task.scheduled_date.as_ref().map(|d| d.to_db_string()),
                 task.deadline.map(|d| d.to_string()),
                 task.estimated_time,
                 task.spent_time,
                 task.status.as_str(),
+                task.is_trashed,
             ],
         )?;
         Ok(())
     }
 
-    /// Returns all Tasks.
-    pub fn get_all_tasks(&self) -> SqlResult<Vec<Task>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, project_id, area_id, title, notes,
-             start_date, deadline, estimated_time, spent_time, status
-             FROM tasks",
-        )?;
-        let rows = stmt.query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, Option<String>>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, String>(4)?,
-                row.get::<_, Option<String>>(5)?,
-                row.get::<_, Option<String>>(6)?,
-                row.get::<_, Option<i64>>(7)?,
-                row.get::<_, Option<i64>>(8)?,
-                row.get::<_, String>(9)?,
-            ))
-        })?;
-
-        let mut tasks = Vec::new();
-        for row in rows {
-            let (
-                id,
-                project_id,
-                area_id,
-                title,
-                notes,
-                start_str,
-                deadline_str,
-                estimated_time,
-                spent_time,
-                status_str,
-            ) = row?;
-            tasks.push(parse_task_row(
-                id,
-                project_id,
-                area_id,
-                title,
-                notes,
-                start_str,
-                deadline_str,
-                estimated_time,
-                spent_time,
-                status_str,
-            )?);
-        }
-        Ok(tasks)
-    }
-
-    /// Returns a single Task by its ID.
+    /// Returns a single Task by ID, or `None` if not found.
     pub fn get_task(&self, id: &str) -> SqlResult<Option<Task>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, project_id, area_id, title, notes,
-             start_date, deadline, estimated_time, spent_time, status
-             FROM tasks WHERE id = ?1",
-        )?;
-        let mut rows = stmt.query_map(params![id], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, Option<String>>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, String>(4)?,
-                row.get::<_, Option<String>>(5)?,
-                row.get::<_, Option<String>>(6)?,
-                row.get::<_, Option<i64>>(7)?,
-                row.get::<_, Option<i64>>(8)?,
-                row.get::<_, String>(9)?,
-            ))
-        })?;
-
-        match rows.next() {
-            None => Ok(None),
-            Some(row) => {
-                let (
-                    id,
-                    project_id,
-                    area_id,
-                    title,
-                    notes,
-                    start_str,
-                    deadline_str,
-                    estimated_time,
-                    spent_time,
-                    status_str,
-                ) = row?;
-                Ok(Some(parse_task_row(
-                    id,
-                    project_id,
-                    area_id,
-                    title,
-                    notes,
-                    start_str,
-                    deadline_str,
-                    estimated_time,
-                    spent_time,
-                    status_str,
-                )?))
-            }
-        }
+        let mut stmt = self
+            .conn
+            .prepare(&format!("{} WHERE id = ?1", TASK_SELECT))?;
+        let mut rows = stmt.query_map(params![id], map_task_row)?;
+        let result = rows.next().transpose();
+        result
     }
 
-    /// Returns all Tasks for a given status (e.g., Inbox, Active).
-    pub fn get_tasks_by_status(&self, status: &TaskStatus) -> SqlResult<Vec<Task>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, project_id, area_id, title, notes,
-             start_date, deadline, estimated_time, spent_time, status
-             FROM tasks WHERE status = ?1",
-        )?;
-        let rows = stmt.query_map(params![status.as_str()], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, Option<String>>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, String>(4)?,
-                row.get::<_, Option<String>>(5)?,
-                row.get::<_, Option<String>>(6)?,
-                row.get::<_, Option<i64>>(7)?,
-                row.get::<_, Option<i64>>(8)?,
-                row.get::<_, String>(9)?,
-            ))
-        })?;
-
-        let mut tasks = Vec::new();
-        for row in rows {
-            let (
-                id,
-                project_id,
-                area_id,
-                title,
-                notes,
-                start_str,
-                deadline_str,
-                estimated_time,
-                spent_time,
-                status_str,
-            ) = row?;
-            tasks.push(parse_task_row(
-                id,
-                project_id,
-                area_id,
-                title,
-                notes,
-                start_str,
-                deadline_str,
-                estimated_time,
-                spent_time,
-                status_str,
-            )?);
-        }
-        Ok(tasks)
+    /// Returns every task (all statuses, including trashed).
+    pub fn get_all_tasks(&self) -> SqlResult<Vec<Task>> {
+        let mut stmt = self.conn.prepare(TASK_SELECT)?;
+        let rows = stmt.query_map([], map_task_row)?.collect();
+        rows
     }
 
     /// Updates all mutable fields of an existing Task.
+    /// Returns the number of rows affected (0 if the ID does not exist).
     pub fn update_task(&self, task: &Task) -> SqlResult<usize> {
         self.conn.execute(
-            "UPDATE tasks SET project_id = ?1, area_id = ?2, title = ?3,
-             notes = ?4, start_date = ?5, deadline = ?6,
-             estimated_time = ?7, spent_time = ?8, status = ?9
-             WHERE id = ?10",
+            "UPDATE tasks SET project_id = ?1, area_id = ?2, title = ?3, notes = ?4,
+             scheduled_date = ?5, deadline = ?6, estimated_time = ?7, spent_time = ?8,
+             status = ?9, is_trashed = ?10 WHERE id = ?11",
             params![
                 task.project_id,
                 task.area_id,
                 task.title,
                 task.notes,
-                task.start_date.map(|d| d.to_string()),
+                task.scheduled_date.as_ref().map(|d| d.to_db_string()),
                 task.deadline.map(|d| d.to_string()),
                 task.estimated_time,
                 task.spent_time,
                 task.status.as_str(),
+                task.is_trashed,
                 task.id,
             ],
         )
     }
 
-    /// Soft-deletes a Task by moving it to Trash.
-    pub fn trash_task(&self, id: &str) -> SqlResult<usize> {
+    /// Marks a Task as Done (moves it to the Logbook).
+    pub fn complete_task(&self, id: &str) -> SqlResult<usize> {
         self.conn.execute(
-            "UPDATE tasks SET status = 'Trash' WHERE id = ?1",
+            "UPDATE tasks SET status = 'Done' WHERE id = ?1",
             params![id],
         )
     }
+
+    /// Marks a Task as Cancelled (moves it to the Logbook).
+    pub fn cancel_task(&self, id: &str) -> SqlResult<usize> {
+        self.conn.execute(
+            "UPDATE tasks SET status = 'Cancelled' WHERE id = ?1",
+            params![id],
+        )
+    }
+
+    /// Soft-deletes a Task by moving it to Trash.
+    /// Does NOT change the status — a Done task can also be in Trash.
+    pub fn trash_task(&self, id: &str) -> SqlResult<usize> {
+        self.conn
+            .execute("UPDATE tasks SET is_trashed = 1 WHERE id = ?1", params![id])
+    }
+
+    /// Recovers a trashed Task, making it visible again in its previous view.
+    pub fn restore_task(&self, id: &str) -> SqlResult<usize> {
+        self.conn
+            .execute("UPDATE tasks SET is_trashed = 0 WHERE id = ?1", params![id])
+    }
+
+    // --- Task Views ---
+
+    /// **Inbox** — Unorganised Todo tasks: no project, no area, no scheduled
+    /// date, not trashed. These move out of the Inbox the moment a project,
+    /// area, or date is assigned.
+    pub fn get_inbox_tasks(&self) -> SqlResult<Vec<Task>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "{} WHERE status = 'Todo' AND is_trashed = 0 \
+             AND project_id IS NULL AND area_id IS NULL AND scheduled_date IS NULL",
+            TASK_SELECT
+        ))?;
+        let rows = stmt.query_map([], map_task_row)?.collect();
+        rows
+    }
+
+    /// **Today** — Todo tasks scheduled for today's date, not trashed.
+    /// Uses `SUBSTR(scheduled_date, 1, 10)` to safely handle both date-only
+    /// ("2026-06-20") and datetime ("2026-06-20 14:30") formats.
+    pub fn get_today_tasks(&self) -> SqlResult<Vec<Task>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "{} WHERE status = 'Todo' AND is_trashed = 0 \
+             AND scheduled_date IS NOT NULL \
+             AND scheduled_date != 'someday' \
+             AND SUBSTR(scheduled_date, 1, 10) = DATE('now', 'localtime')",
+            TASK_SELECT
+        ))?;
+        let rows = stmt.query_map([], map_task_row)?.collect();
+        rows
+    }
+
+    /// **Upcoming** — Todo tasks with a future scheduled date, not trashed.
+    pub fn get_upcoming_tasks(&self) -> SqlResult<Vec<Task>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "{} WHERE status = 'Todo' AND is_trashed = 0 \
+             AND scheduled_date IS NOT NULL \
+             AND scheduled_date != 'someday' \
+             AND SUBSTR(scheduled_date, 1, 10) > DATE('now', 'localtime')",
+            TASK_SELECT
+        ))?;
+        let rows = stmt.query_map([], map_task_row)?.collect();
+        rows
+    }
+
+    /// **Anytime** — Todo tasks with no scheduled date, not trashed.
+    /// This is a superset of Inbox (Inbox = Anytime tasks that are also
+    /// unassigned to any project or area).
+    pub fn get_anytime_tasks(&self) -> SqlResult<Vec<Task>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "{} WHERE status = 'Todo' AND is_trashed = 0 AND scheduled_date IS NULL",
+            TASK_SELECT
+        ))?;
+        let rows = stmt.query_map([], map_task_row)?.collect();
+        rows
+    }
+
+    /// **Someday** — Todo tasks deferred indefinitely, not trashed.
+    pub fn get_someday_tasks(&self) -> SqlResult<Vec<Task>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "{} WHERE status = 'Todo' AND is_trashed = 0 AND scheduled_date = 'someday'",
+            TASK_SELECT
+        ))?;
+        let rows = stmt.query_map([], map_task_row)?.collect();
+        rows
+    }
+
+    /// **Logbook** — Done or Cancelled tasks, not trashed.
+    /// A task completed while in the Inbox still appears here, correctly
+    /// preserving its origin context (no project, no area).
+    pub fn get_logbook_tasks(&self) -> SqlResult<Vec<Task>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "{} WHERE status IN ('Done', 'Cancelled') AND is_trashed = 0",
+            TASK_SELECT
+        ))?;
+        let rows = stmt.query_map([], map_task_row)?.collect();
+        rows
+    }
+
+    /// **Trash** — soft-deleted tasks.
+    pub fn get_trashed_tasks(&self) -> SqlResult<Vec<Task>> {
+        let mut stmt = self
+            .conn
+            .prepare(&format!("{} WHERE is_trashed = 1", TASK_SELECT))?;
+        let rows = stmt.query_map([], map_task_row)?.collect();
+        rows
+    }
 }
 
-// =========================================================================
-// Private helpers
-// =========================================================================
+// ============================================================================
+// Private row-mapping functions
+//
+// These are module-level functions (not methods) so they can be passed
+// directly to `query_map` without allocating a closure each time.
+// Each function reads a SQLite row and returns the fully-parsed Rust type.
+// ============================================================================
 
-/// Parses a full task row from raw SQL column values.
-#[allow(clippy::too_many_arguments)]
-fn parse_task_row(
-    id: String,
-    project_id: Option<String>,
-    area_id: Option<String>,
-    title: String,
-    notes: String,
-    start_str: Option<String>,
-    deadline_str: Option<String>,
-    estimated_time: Option<i64>,
-    spent_time: Option<i64>,
-    status_str: String,
-) -> SqlResult<Task> {
-    let start_date = start_str
+fn map_area_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Area> {
+    Ok(Area {
+        id: row.get(0)?,
+        title: row.get(1)?,
+        notes: row.get(2)?,
+        is_archived: row.get(3)?,
+    })
+}
+
+fn map_project_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
+    let scheduled_str: Option<String> = row.get(4)?;
+    let deadline_str: Option<String> = row.get(5)?;
+    let status_str: String = row.get(6)?;
+
+    let scheduled_date = scheduled_str
+        .as_deref()
+        .map(ScheduledDate::from_db_string)
+        .transpose()
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(
+                4,
+                rusqlite::types::Type::Text,
+                Box::new(ParseError(e)),
+            )
+        })?;
+
+    let deadline = deadline_str
         .as_deref()
         .map(|s| s.parse::<chrono::NaiveDate>())
         .transpose()
         .map_err(|e| {
             rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::new(e))
         })?;
+
+    let status = status_str.parse::<ProjectStatus>().map_err(|e| {
+        rusqlite::Error::FromSqlConversionFailure(
+            6,
+            rusqlite::types::Type::Text,
+            Box::new(ParseError(e)),
+        )
+    })?;
+
+    Ok(Project {
+        id: row.get(0)?,
+        area_id: row.get(1)?,
+        title: row.get(2)?,
+        notes: row.get(3)?,
+        scheduled_date,
+        deadline,
+        status,
+        is_trashed: row.get(7)?,
+    })
+}
+
+fn map_task_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
+    let scheduled_str: Option<String> = row.get(5)?;
+    let deadline_str: Option<String> = row.get(6)?;
+    let status_str: String = row.get(9)?;
+
+    let scheduled_date = scheduled_str
+        .as_deref()
+        .map(ScheduledDate::from_db_string)
+        .transpose()
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(
+                5,
+                rusqlite::types::Type::Text,
+                Box::new(ParseError(e)),
+            )
+        })?;
+
     let deadline = deadline_str
         .as_deref()
         .map(|s| s.parse::<chrono::NaiveDate>())
@@ -565,6 +572,7 @@ fn parse_task_row(
         .map_err(|e| {
             rusqlite::Error::FromSqlConversionFailure(6, rusqlite::types::Type::Text, Box::new(e))
         })?;
+
     let status = status_str.parse::<TaskStatus>().map_err(|e| {
         rusqlite::Error::FromSqlConversionFailure(
             9,
@@ -572,22 +580,24 @@ fn parse_task_row(
             Box::new(ParseError(e)),
         )
     })?;
+
     Ok(Task {
-        id,
-        project_id,
-        area_id,
-        title,
-        notes,
-        start_date,
+        id: row.get(0)?,
+        project_id: row.get(1)?,
+        area_id: row.get(2)?,
+        title: row.get(3)?,
+        notes: row.get(4)?,
+        scheduled_date,
         deadline,
-        estimated_time,
-        spent_time,
+        estimated_time: row.get(7)?,
+        spent_time: row.get(8)?,
         status,
+        is_trashed: row.get(10)?,
     })
 }
 
-/// Newtype wrapper to make a `String` error implement `std::error::Error`,
-/// which is required by `rusqlite::Error::FromSqlConversionFailure`.
+/// Wraps a `String` so it implements `std::error::Error`, as required by
+/// `rusqlite::Error::FromSqlConversionFailure`.
 #[derive(Debug)]
 struct ParseError(String);
 
@@ -599,57 +609,70 @@ impl std::fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-// =========================================================================
+// ============================================================================
 // Tests
-// =========================================================================
+// ============================================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Area, Project, Task, TaskStatus};
-    use chrono::NaiveDate;
+    use crate::models::{Area, Project, ProjectStatus, ScheduledDate, Task, TaskStatus};
+    use chrono::{Local, NaiveDate, NaiveTime};
 
     fn setup() -> Database {
         Database::new_in_memory().expect("failed to open in-memory database")
     }
 
-    // --- Schema ---
+    // -------------------------------------------------------------------------
+    // Schema
+    // -------------------------------------------------------------------------
 
     #[test]
     fn test_schema_initializes_without_error() {
-        // If setup() panics the test fails — no explicit assert needed.
         let _db = setup();
     }
 
-    // --- Area CRUD ---
+    // -------------------------------------------------------------------------
+    // Area CRUD
+    // -------------------------------------------------------------------------
 
     #[test]
     fn test_create_and_retrieve_area() {
         let db = setup();
         let area = Area::new("Work");
-        db.create_area(&area).expect("create_area failed");
-
-        let retrieved = db.get_area(&area.id).expect("get_area failed");
-        assert_eq!(retrieved, Some(area));
-    }
-
-    #[test]
-    fn test_get_all_areas_returns_all_inserted() {
-        let db = setup();
-        let a1 = Area::new("Work");
-        let a2 = Area::new("Personal");
-        db.create_area(&a1).unwrap();
-        db.create_area(&a2).unwrap();
-
-        let all = db.get_all_areas().expect("get_all_areas failed");
-        assert_eq!(all.len(), 2);
+        db.create_area(&area).unwrap();
+        assert_eq!(db.get_area(&area.id).unwrap(), Some(area));
     }
 
     #[test]
     fn test_get_area_returns_none_for_unknown_id() {
         let db = setup();
-        let result = db.get_area("non-existent-id").expect("get_area failed");
-        assert!(result.is_none());
+        assert!(db.get_area("ghost").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_get_active_areas_excludes_archived() {
+        let db = setup();
+        let a1 = Area::new("Work");
+        let mut a2 = Area::new("Old client");
+        a2.is_archived = true;
+        db.create_area(&a1).unwrap();
+        db.create_area(&a2).unwrap();
+
+        let active = db.get_active_areas().unwrap();
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].title, "Work");
+    }
+
+    #[test]
+    fn test_get_all_areas_includes_archived() {
+        let db = setup();
+        let a1 = Area::new("Work");
+        let mut a2 = Area::new("Old");
+        a2.is_archived = true;
+        db.create_area(&a1).unwrap();
+        db.create_area(&a2).unwrap();
+        assert_eq!(db.get_all_areas().unwrap().len(), 2);
     }
 
     #[test]
@@ -657,15 +680,27 @@ mod tests {
         let db = setup();
         let mut area = Area::new("Work");
         db.create_area(&area).unwrap();
-
         area.title = "Pro Work".to_string();
-        area.notes = "Updated notes".to_string();
-        let affected = db.update_area(&area).expect("update_area failed");
-        assert_eq!(affected, 1);
+        area.notes = "Updated".to_string();
+        assert_eq!(db.update_area(&area).unwrap(), 1);
+        let got = db.get_area(&area.id).unwrap().unwrap();
+        assert_eq!(got.title, "Pro Work");
+        assert_eq!(got.notes, "Updated");
+    }
 
-        let retrieved = db.get_area(&area.id).unwrap().unwrap();
-        assert_eq!(retrieved.title, "Pro Work");
-        assert_eq!(retrieved.notes, "Updated notes");
+    #[test]
+    fn test_archive_and_unarchive_area() {
+        let db = setup();
+        let area = Area::new("Old client");
+        db.create_area(&area).unwrap();
+
+        db.archive_area(&area.id).unwrap();
+        assert!(db.get_area(&area.id).unwrap().unwrap().is_archived);
+        assert_eq!(db.get_active_areas().unwrap().len(), 0);
+
+        db.unarchive_area(&area.id).unwrap();
+        assert!(!db.get_area(&area.id).unwrap().unwrap().is_archived);
+        assert_eq!(db.get_active_areas().unwrap().len(), 1);
     }
 
     #[test]
@@ -673,198 +708,424 @@ mod tests {
         let db = setup();
         let area = Area::new("Temp");
         db.create_area(&area).unwrap();
-        db.delete_area(&area.id).expect("delete_area failed");
-
-        let result = db.get_area(&area.id).unwrap();
-        assert!(result.is_none());
+        db.delete_area(&area.id).unwrap();
+        assert!(db.get_area(&area.id).unwrap().is_none());
     }
 
-    // --- Project CRUD ---
+    // -------------------------------------------------------------------------
+    // Project CRUD & Operations
+    // -------------------------------------------------------------------------
 
     #[test]
     fn test_create_and_retrieve_project() {
         let db = setup();
-        let project = Project::new("Launch Website");
-        db.create_project(&project).expect("create_project failed");
-
-        let retrieved = db.get_project(&project.id).expect("get_project failed");
-        assert_eq!(retrieved, Some(project));
+        let p = Project::new("Launch website");
+        db.create_project(&p).unwrap();
+        assert_eq!(db.get_project(&p.id).unwrap(), Some(p));
     }
 
     #[test]
-    fn test_project_with_area_and_deadline() {
+    fn test_get_project_returns_none_for_unknown_id() {
+        let db = setup();
+        assert!(db.get_project("ghost").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_project_with_area_deadline_and_scheduled_date() {
         let db = setup();
         let area = Area::new("Work");
         db.create_area(&area).unwrap();
 
-        let mut project = Project::new("Q3 Report");
-        project.area_id = Some(area.id.clone());
-        project.deadline = Some(NaiveDate::from_ymd_opt(2026, 9, 30).unwrap());
-        db.create_project(&project).unwrap();
+        let mut p = Project::new("Q3 Report");
+        p.area_id = Some(area.id.clone());
+        p.deadline = Some(NaiveDate::from_ymd_opt(2026, 9, 30).unwrap());
+        p.scheduled_date = Some(ScheduledDate::On {
+            date: NaiveDate::from_ymd_opt(2026, 7, 1).unwrap(),
+            time: None,
+        });
+        db.create_project(&p).unwrap();
 
-        let retrieved = db.get_project(&project.id).unwrap().unwrap();
-        assert_eq!(retrieved.area_id, Some(area.id));
-        assert_eq!(retrieved.deadline, project.deadline);
+        let got = db.get_project(&p.id).unwrap().unwrap();
+        assert_eq!(got.area_id, Some(area.id));
+        assert_eq!(got.deadline, p.deadline);
+        assert_eq!(got.scheduled_date, p.scheduled_date);
     }
 
     #[test]
-    fn test_trash_project_sets_status_to_trash() {
+    fn test_complete_project_moves_to_logbook() {
         let db = setup();
-        let project = Project::new("Old Project");
-        db.create_project(&project).unwrap();
+        let p = Project::new("Done project");
+        db.create_project(&p).unwrap();
+        db.complete_project(&p.id).unwrap();
 
-        db.trash_project(&project.id).expect("trash_project failed");
+        let got = db.get_project(&p.id).unwrap().unwrap();
+        assert_eq!(got.status, ProjectStatus::Done);
 
-        let retrieved = db.get_project(&project.id).unwrap().unwrap();
-        assert_eq!(retrieved.status, crate::models::ProjectStatus::Trash);
+        // Must appear in logbook, not anytime
+        assert_eq!(db.get_logbook_projects().unwrap().len(), 1);
+        assert_eq!(db.get_anytime_projects().unwrap().len(), 0);
     }
 
     #[test]
-    fn test_update_project() {
+    fn test_cancel_project_moves_to_logbook() {
         let db = setup();
-        let mut project = Project::new("Draft");
-        db.create_project(&project).unwrap();
+        let p = Project::new("Cancelled project");
+        db.create_project(&p).unwrap();
+        db.cancel_project(&p.id).unwrap();
 
-        project.title = "Published".to_string();
-        project.status = crate::models::ProjectStatus::Logbook;
-        db.update_project(&project).expect("update_project failed");
-
-        let retrieved = db.get_project(&project.id).unwrap().unwrap();
-        assert_eq!(retrieved.title, "Published");
-        assert_eq!(retrieved.status, crate::models::ProjectStatus::Logbook);
+        assert_eq!(
+            db.get_project(&p.id).unwrap().unwrap().status,
+            ProjectStatus::Cancelled
+        );
+        assert_eq!(db.get_logbook_projects().unwrap().len(), 1);
     }
 
-    // --- Task CRUD ---
+    #[test]
+    fn test_trash_and_restore_project() {
+        let db = setup();
+        let p = Project::new("Draft");
+        db.create_project(&p).unwrap();
+
+        db.trash_project(&p.id).unwrap();
+        assert!(db.get_project(&p.id).unwrap().unwrap().is_trashed);
+        // Trashed project must NOT appear in anytime
+        assert_eq!(db.get_anytime_projects().unwrap().len(), 0);
+        assert_eq!(db.get_trashed_projects().unwrap().len(), 1);
+
+        db.restore_project(&p.id).unwrap();
+        assert!(!db.get_project(&p.id).unwrap().unwrap().is_trashed);
+        assert_eq!(db.get_anytime_projects().unwrap().len(), 1);
+        assert_eq!(db.get_trashed_projects().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_done_project_can_also_be_trashed() {
+        // Status and is_trashed are independent. A Done project can be trashed
+        // (it won't appear in Logbook anymore, only in Trash).
+        let db = setup();
+        let p = Project::new("Done then trashed");
+        db.create_project(&p).unwrap();
+        db.complete_project(&p.id).unwrap();
+        db.trash_project(&p.id).unwrap();
+
+        let got = db.get_project(&p.id).unwrap().unwrap();
+        assert_eq!(got.status, ProjectStatus::Done);
+        assert!(got.is_trashed);
+
+        assert_eq!(db.get_logbook_projects().unwrap().len(), 0); // not in logbook
+        assert_eq!(db.get_trashed_projects().unwrap().len(), 1); // in trash
+    }
+
+    // -------------------------------------------------------------------------
+    // Project Views
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_project_views_are_mutually_exclusive() {
+        let db = setup();
+
+        let p_anytime = Project::new("Active project");
+        let mut p_someday = Project::new("Someday project");
+        p_someday.scheduled_date = Some(ScheduledDate::Someday);
+        let p_done = Project::new("Done project");
+
+        db.create_project(&p_anytime).unwrap();
+        db.create_project(&p_someday).unwrap();
+        db.create_project(&p_done).unwrap();
+        db.complete_project(&p_done.id).unwrap();
+
+        assert_eq!(db.get_anytime_projects().unwrap().len(), 1);
+        assert_eq!(db.get_someday_projects().unwrap().len(), 1);
+        assert_eq!(db.get_logbook_projects().unwrap().len(), 1);
+        assert_eq!(db.get_trashed_projects().unwrap().len(), 0);
+    }
+
+    // -------------------------------------------------------------------------
+    // Task CRUD & Operations
+    // -------------------------------------------------------------------------
 
     #[test]
     fn test_create_and_retrieve_task() {
         let db = setup();
-        let task = Task::new("Buy groceries");
-        db.create_task(&task).expect("create_task failed");
+        let t = Task::new("Buy groceries");
+        db.create_task(&t).unwrap();
+        assert_eq!(db.get_task(&t.id).unwrap(), Some(t));
+    }
 
-        let retrieved = db.get_task(&task.id).expect("get_task failed");
-        assert_eq!(retrieved, Some(task));
+    #[test]
+    fn test_get_task_returns_none_for_unknown_id() {
+        let db = setup();
+        assert!(db.get_task("ghost").unwrap().is_none());
     }
 
     #[test]
     fn test_task_with_all_optional_fields() {
         let db = setup();
-        let mut task = Task::new("Deep work session");
-        task.start_date = Some(NaiveDate::from_ymd_opt(2026, 6, 20).unwrap());
-        task.deadline = Some(NaiveDate::from_ymd_opt(2026, 6, 21).unwrap());
-        task.estimated_time = Some(90);
-        task.spent_time = Some(45);
-        task.status = TaskStatus::Active;
-        db.create_task(&task).unwrap();
-
-        let retrieved = db.get_task(&task.id).unwrap().unwrap();
-        assert_eq!(retrieved, task);
+        let mut t = Task::new("Deep work session");
+        t.scheduled_date = Some(ScheduledDate::On {
+            date: NaiveDate::from_ymd_opt(2026, 6, 25).unwrap(),
+            time: Some(NaiveTime::from_hms_opt(9, 0, 0).unwrap()),
+        });
+        t.deadline = Some(NaiveDate::from_ymd_opt(2026, 6, 30).unwrap());
+        t.estimated_time = Some(90);
+        t.spent_time = Some(45);
+        db.create_task(&t).unwrap();
+        assert_eq!(db.get_task(&t.id).unwrap(), Some(t));
     }
 
     #[test]
-    fn test_get_tasks_by_status_inbox() {
+    fn test_complete_task_moves_to_logbook() {
         let db = setup();
-        let inbox_task = Task::new("Inbox item");
-        let mut active_task = Task::new("Active item");
-        active_task.status = TaskStatus::Active;
-        db.create_task(&inbox_task).unwrap();
-        db.create_task(&active_task).unwrap();
+        let t = Task::new("Write report");
+        db.create_task(&t).unwrap();
+        db.complete_task(&t.id).unwrap();
 
-        let inbox = db.get_tasks_by_status(&TaskStatus::Inbox).expect("failed");
-        assert_eq!(inbox.len(), 1);
-        assert_eq!(inbox[0].title, "Inbox item");
+        assert_eq!(
+            db.get_task(&t.id).unwrap().unwrap().status,
+            TaskStatus::Done
+        );
+        assert_eq!(db.get_logbook_tasks().unwrap().len(), 1);
+        assert_eq!(db.get_inbox_tasks().unwrap().len(), 0);
     }
 
     #[test]
-    fn test_trash_task_sets_status_to_trash() {
+    fn test_cancel_task_moves_to_logbook() {
         let db = setup();
-        let task = Task::new("Old task");
-        db.create_task(&task).unwrap();
+        let t = Task::new("Old idea");
+        db.create_task(&t).unwrap();
+        db.cancel_task(&t.id).unwrap();
 
-        db.trash_task(&task.id).expect("trash_task failed");
-
-        let retrieved = db.get_task(&task.id).unwrap().unwrap();
-        assert_eq!(retrieved.status, TaskStatus::Trash);
+        assert_eq!(
+            db.get_task(&t.id).unwrap().unwrap().status,
+            TaskStatus::Cancelled
+        );
+        assert_eq!(db.get_logbook_tasks().unwrap().len(), 1);
     }
 
     #[test]
-    fn test_update_task() {
+    fn test_trash_and_restore_task() {
         let db = setup();
-        let mut task = Task::new("Write draft");
-        db.create_task(&task).unwrap();
+        let t = Task::new("Old task");
+        db.create_task(&t).unwrap();
 
-        task.notes = "First draft done".to_string();
-        task.spent_time = Some(60);
-        task.status = TaskStatus::Logbook;
-        db.update_task(&task).expect("update_task failed");
+        db.trash_task(&t.id).unwrap();
+        assert!(db.get_task(&t.id).unwrap().unwrap().is_trashed);
+        assert_eq!(db.get_inbox_tasks().unwrap().len(), 0);
+        assert_eq!(db.get_trashed_tasks().unwrap().len(), 1);
 
-        let retrieved = db.get_task(&task.id).unwrap().unwrap();
-        assert_eq!(retrieved.notes, "First draft done");
-        assert_eq!(retrieved.spent_time, Some(60));
-        assert_eq!(retrieved.status, TaskStatus::Logbook);
+        db.restore_task(&t.id).unwrap();
+        assert!(!db.get_task(&t.id).unwrap().unwrap().is_trashed);
+        assert_eq!(db.get_inbox_tasks().unwrap().len(), 1);
+        assert_eq!(db.get_trashed_tasks().unwrap().len(), 0);
     }
 
     #[test]
-    fn test_get_all_tasks_returns_all_inserted() {
+    fn test_done_task_can_also_be_trashed() {
         let db = setup();
-        db.create_task(&Task::new("Task A")).unwrap();
-        db.create_task(&Task::new("Task B")).unwrap();
-        db.create_task(&Task::new("Task C")).unwrap();
+        let t = Task::new("Done then trashed");
+        db.create_task(&t).unwrap();
+        db.complete_task(&t.id).unwrap();
+        db.trash_task(&t.id).unwrap();
 
-        let tasks = db.get_all_tasks().expect("get_all_tasks failed");
-        assert_eq!(tasks.len(), 3);
+        let got = db.get_task(&t.id).unwrap().unwrap();
+        assert_eq!(got.status, TaskStatus::Done);
+        assert!(got.is_trashed);
+
+        assert_eq!(db.get_logbook_tasks().unwrap().len(), 0); // not in logbook
+        assert_eq!(db.get_trashed_tasks().unwrap().len(), 1); // in trash
     }
 
-    // --- Edge cases ---
+    // -------------------------------------------------------------------------
+    // Task Views — Inbox, Today, Upcoming, Anytime, Someday
+    // -------------------------------------------------------------------------
 
     #[test]
-    fn test_task_someday_status_persists() {
-        // Regression: TaskStatus::Someday was missing in the initial implementation.
+    fn test_inbox_contains_only_unorganised_todo_tasks() {
         let db = setup();
-        let mut task = Task::new("Learn Japanese someday");
-        task.status = TaskStatus::Someday;
-        db.create_task(&task).unwrap();
 
-        let retrieved = db.get_task(&task.id).unwrap().unwrap();
-        assert_eq!(retrieved.status, TaskStatus::Someday);
+        let inbox = Task::new("Unclassified"); // no area, no project, no date
+
+        let mut with_area = Task::new("Has area");
+        let area = Area::new("Work");
+        db.create_area(&area).unwrap();
+        with_area.area_id = Some(area.id.clone());
+
+        let mut with_date = Task::new("Has date");
+        with_date.scheduled_date = Some(ScheduledDate::Someday);
+
+        db.create_task(&inbox).unwrap();
+        db.create_task(&with_area).unwrap();
+        db.create_task(&with_date).unwrap();
+
+        let result = db.get_inbox_tasks().unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].title, "Unclassified");
     }
 
     #[test]
-    fn test_get_tasks_by_status_someday() {
+    fn test_task_leaves_inbox_when_date_is_assigned() {
         let db = setup();
-        let mut t1 = Task::new("Someday task");
-        t1.status = TaskStatus::Someday;
-        let t2 = Task::new("Inbox task"); // default Inbox
-        db.create_task(&t1).unwrap();
-        db.create_task(&t2).unwrap();
+        let mut t = Task::new("Inbox task");
+        db.create_task(&t).unwrap();
+        assert_eq!(db.get_inbox_tasks().unwrap().len(), 1);
 
-        let someday = db.get_tasks_by_status(&TaskStatus::Someday).unwrap();
-        assert_eq!(someday.len(), 1);
-        assert_eq!(someday[0].title, "Someday task");
+        // Assigning a date moves it out of Inbox into Someday
+        t.scheduled_date = Some(ScheduledDate::Someday);
+        db.update_task(&t).unwrap();
+        assert_eq!(db.get_inbox_tasks().unwrap().len(), 0);
+        assert_eq!(db.get_someday_tasks().unwrap().len(), 1);
     }
 
     #[test]
-    fn test_update_on_nonexistent_id_returns_zero_rows() {
+    fn test_task_leaves_inbox_when_project_is_assigned() {
         let db = setup();
-        let area = Area {
-            id: "ghost-id".to_string(),
+        let mut t = Task::new("Inbox task");
+        db.create_task(&t).unwrap();
+        assert_eq!(db.get_inbox_tasks().unwrap().len(), 1);
+
+        let p = Project::new("My project");
+        db.create_project(&p).unwrap();
+        t.project_id = Some(p.id.clone());
+        db.update_task(&t).unwrap();
+
+        // Now has a project but no date → Anytime (not Inbox)
+        assert_eq!(db.get_inbox_tasks().unwrap().len(), 0);
+        assert_eq!(db.get_anytime_tasks().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_today_view() {
+        let db = setup();
+        let today = Local::now().date_naive();
+        let future = NaiveDate::from_ymd_opt(2099, 12, 31).unwrap();
+
+        let mut today_task = Task::new("Today task");
+        today_task.scheduled_date = Some(ScheduledDate::On {
+            date: today,
+            time: None,
+        });
+
+        let mut future_task = Task::new("Future task");
+        future_task.scheduled_date = Some(ScheduledDate::On {
+            date: future,
+            time: None,
+        });
+
+        let mut someday_task = Task::new("Someday task");
+        someday_task.scheduled_date = Some(ScheduledDate::Someday);
+
+        db.create_task(&today_task).unwrap();
+        db.create_task(&future_task).unwrap();
+        db.create_task(&someday_task).unwrap();
+
+        let today_results = db.get_today_tasks().unwrap();
+        assert_eq!(today_results.len(), 1, "Only today's task should appear");
+        assert_eq!(today_results[0].title, "Today task");
+    }
+
+    #[test]
+    fn test_today_view_with_notification_time() {
+        // A task scheduled today with a time should still appear in Today.
+        let db = setup();
+        let today = Local::now().date_naive();
+        let mut t = Task::new("Morning standup");
+        t.scheduled_date = Some(ScheduledDate::On {
+            date: today,
+            time: Some(NaiveTime::from_hms_opt(9, 30, 0).unwrap()),
+        });
+        db.create_task(&t).unwrap();
+        assert_eq!(db.get_today_tasks().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_upcoming_view() {
+        let db = setup();
+        let future = NaiveDate::from_ymd_opt(2099, 12, 31).unwrap();
+        let today = Local::now().date_naive();
+
+        let mut upcoming = Task::new("Future task");
+        upcoming.scheduled_date = Some(ScheduledDate::On {
+            date: future,
+            time: None,
+        });
+        let mut today_task = Task::new("Today task");
+        today_task.scheduled_date = Some(ScheduledDate::On {
+            date: today,
+            time: None,
+        });
+        let mut someday = Task::new("Someday");
+        someday.scheduled_date = Some(ScheduledDate::Someday);
+
+        db.create_task(&upcoming).unwrap();
+        db.create_task(&today_task).unwrap();
+        db.create_task(&someday).unwrap();
+
+        let results = db.get_upcoming_tasks().unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].title, "Future task");
+    }
+
+    #[test]
+    fn test_anytime_view_includes_inbox_but_excludes_someday() {
+        let db = setup();
+
+        let inbox = Task::new("Inbox task"); // no date → Anytime (subset: Inbox)
+        let area = Area::new("Work");
+        db.create_area(&area).unwrap();
+        let mut with_area = Task::new("Area task, no date"); // has area, no date → Anytime
+        with_area.area_id = Some(area.id.clone());
+        let mut someday = Task::new("Someday task");
+        someday.scheduled_date = Some(ScheduledDate::Someday);
+
+        db.create_task(&inbox).unwrap();
+        db.create_task(&with_area).unwrap();
+        db.create_task(&someday).unwrap();
+
+        let anytime = db.get_anytime_tasks().unwrap();
+        assert_eq!(anytime.len(), 2, "Inbox + area task should be Anytime");
+
+        let someday_results = db.get_someday_tasks().unwrap();
+        assert_eq!(someday_results.len(), 1);
+    }
+
+    #[test]
+    fn test_logbook_shows_done_and_cancelled_inbox_tasks() {
+        // A task completed while in the Inbox must appear in the Logbook
+        // with its original context preserved (no project, no area).
+        let db = setup();
+        let t = Task::new("Quick inbox task"); // no project, no area
+        db.create_task(&t).unwrap();
+        db.complete_task(&t.id).unwrap();
+
+        let logbook = db.get_logbook_tasks().unwrap();
+        assert_eq!(logbook.len(), 1);
+        assert!(logbook[0].project_id.is_none());
+        assert!(logbook[0].area_id.is_none());
+        assert_eq!(logbook[0].status, TaskStatus::Done);
+    }
+
+    // -------------------------------------------------------------------------
+    // Edge cases
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_update_on_nonexistent_id_returns_zero() {
+        let db = setup();
+        let ghost = Area {
+            id: "ghost".to_string(),
             title: "Ghost".to_string(),
             notes: String::new(),
+            is_archived: false,
         };
-        let affected = db.update_area(&area).unwrap();
-        // No row matched — should silently return 0, not an error.
-        assert_eq!(affected, 0);
+        assert_eq!(db.update_area(&ghost).unwrap(), 0);
     }
 
     #[test]
     fn test_foreign_key_violation_is_rejected() {
-        // Inserting a task with a project_id that doesn't exist must fail
-        // because PRAGMA foreign_keys=ON is set in initialize_schema.
         let db = setup();
-        let mut task = Task::new("Orphan task");
-        task.project_id = Some("non-existent-project-id".to_string());
-        let result = db.create_task(&task);
-        assert!(result.is_err(), "expected foreign key violation error");
+        let mut t = Task::new("Orphan");
+        t.project_id = Some("non-existent-project".to_string());
+        assert!(db.create_task(&t).is_err(), "FK violation must be rejected");
     }
 
     #[test]
@@ -872,48 +1133,26 @@ mod tests {
         let db = setup();
         let area = Area::new("Work");
         db.create_area(&area).unwrap();
-
         let mut project = Project::new("Website");
         project.area_id = Some(area.id.clone());
         db.create_project(&project).unwrap();
 
-        let mut task = Task::new("Write homepage copy");
-        task.project_id = Some(project.id.clone());
-        task.area_id = Some(area.id.clone());
-        db.create_task(&task).unwrap();
+        let mut t = Task::new("Write copy");
+        t.project_id = Some(project.id.clone());
+        t.area_id = Some(area.id.clone());
+        db.create_task(&t).unwrap();
 
-        let retrieved = db.get_task(&task.id).unwrap().unwrap();
-        assert_eq!(retrieved.project_id, Some(project.id));
-        assert_eq!(retrieved.area_id, Some(area.id));
+        let got = db.get_task(&t.id).unwrap().unwrap();
+        assert_eq!(got.project_id, Some(project.id));
+        assert_eq!(got.area_id, Some(area.id));
     }
 
     #[test]
-    fn test_get_projects_by_status_someday() {
+    fn test_get_all_tasks_returns_all() {
         let db = setup();
-        let mut p1 = Project::new("Learn Piano");
-        p1.status = crate::models::ProjectStatus::Someday;
-        let p2 = Project::new("Active Project"); // default Active
-        db.create_project(&p1).unwrap();
-        db.create_project(&p2).unwrap();
-
-        let someday = db
-            .get_projects_by_status(&crate::models::ProjectStatus::Someday)
-            .unwrap();
-        assert_eq!(someday.len(), 1);
-        assert_eq!(someday[0].title, "Learn Piano");
-    }
-
-    #[test]
-    fn test_get_task_returns_none_for_unknown_id() {
-        let db = setup();
-        let result = db.get_task("ghost-task-id").unwrap();
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn test_get_project_returns_none_for_unknown_id() {
-        let db = setup();
-        let result = db.get_project("ghost-project-id").unwrap();
-        assert!(result.is_none());
+        db.create_task(&Task::new("A")).unwrap();
+        db.create_task(&Task::new("B")).unwrap();
+        db.create_task(&Task::new("C")).unwrap();
+        assert_eq!(db.get_all_tasks().unwrap().len(), 3);
     }
 }
