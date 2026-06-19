@@ -268,6 +268,57 @@ impl Database {
         )
     }
 
+    /// Returns all Projects matching a given status.
+    pub fn get_projects_by_status(&self, status: &ProjectStatus) -> SqlResult<Vec<Project>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, area_id, title, notes, deadline, status FROM projects WHERE status = ?1",
+        )?;
+        let rows = stmt.query_map(params![status.as_str()], |row| {
+            let deadline_str: Option<String> = row.get(4)?;
+            let status_str: String = row.get(5)?;
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                deadline_str,
+                status_str,
+            ))
+        })?;
+
+        let mut projects = Vec::new();
+        for row in rows {
+            let (id, area_id, title, notes, deadline_str, status_str) = row?;
+            let deadline = deadline_str
+                .as_deref()
+                .map(|s| s.parse::<chrono::NaiveDate>())
+                .transpose()
+                .map_err(|e| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        4,
+                        rusqlite::types::Type::Text,
+                        Box::new(e),
+                    )
+                })?;
+            let status = status_str.parse::<ProjectStatus>().map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    5,
+                    rusqlite::types::Type::Text,
+                    Box::new(ParseError(e)),
+                )
+            })?;
+            projects.push(Project {
+                id,
+                area_id,
+                title,
+                notes,
+                deadline,
+                status,
+            });
+        }
+        Ok(projects)
+    }
+
     // =========================================================================
     // Task CRUD
     // =========================================================================
@@ -762,5 +813,107 @@ mod tests {
 
         let tasks = db.get_all_tasks().expect("get_all_tasks failed");
         assert_eq!(tasks.len(), 3);
+    }
+
+    // --- Edge cases ---
+
+    #[test]
+    fn test_task_someday_status_persists() {
+        // Regression: TaskStatus::Someday was missing in the initial implementation.
+        let db = setup();
+        let mut task = Task::new("Learn Japanese someday");
+        task.status = TaskStatus::Someday;
+        db.create_task(&task).unwrap();
+
+        let retrieved = db.get_task(&task.id).unwrap().unwrap();
+        assert_eq!(retrieved.status, TaskStatus::Someday);
+    }
+
+    #[test]
+    fn test_get_tasks_by_status_someday() {
+        let db = setup();
+        let mut t1 = Task::new("Someday task");
+        t1.status = TaskStatus::Someday;
+        let t2 = Task::new("Inbox task"); // default Inbox
+        db.create_task(&t1).unwrap();
+        db.create_task(&t2).unwrap();
+
+        let someday = db.get_tasks_by_status(&TaskStatus::Someday).unwrap();
+        assert_eq!(someday.len(), 1);
+        assert_eq!(someday[0].title, "Someday task");
+    }
+
+    #[test]
+    fn test_update_on_nonexistent_id_returns_zero_rows() {
+        let db = setup();
+        let area = Area {
+            id: "ghost-id".to_string(),
+            title: "Ghost".to_string(),
+            notes: String::new(),
+        };
+        let affected = db.update_area(&area).unwrap();
+        // No row matched — should silently return 0, not an error.
+        assert_eq!(affected, 0);
+    }
+
+    #[test]
+    fn test_foreign_key_violation_is_rejected() {
+        // Inserting a task with a project_id that doesn't exist must fail
+        // because PRAGMA foreign_keys=ON is set in initialize_schema.
+        let db = setup();
+        let mut task = Task::new("Orphan task");
+        task.project_id = Some("non-existent-project-id".to_string());
+        let result = db.create_task(&task);
+        assert!(result.is_err(), "expected foreign key violation error");
+    }
+
+    #[test]
+    fn test_task_linked_to_both_project_and_area() {
+        let db = setup();
+        let area = Area::new("Work");
+        db.create_area(&area).unwrap();
+
+        let mut project = Project::new("Website");
+        project.area_id = Some(area.id.clone());
+        db.create_project(&project).unwrap();
+
+        let mut task = Task::new("Write homepage copy");
+        task.project_id = Some(project.id.clone());
+        task.area_id = Some(area.id.clone());
+        db.create_task(&task).unwrap();
+
+        let retrieved = db.get_task(&task.id).unwrap().unwrap();
+        assert_eq!(retrieved.project_id, Some(project.id));
+        assert_eq!(retrieved.area_id, Some(area.id));
+    }
+
+    #[test]
+    fn test_get_projects_by_status_someday() {
+        let db = setup();
+        let mut p1 = Project::new("Learn Piano");
+        p1.status = crate::models::ProjectStatus::Someday;
+        let p2 = Project::new("Active Project"); // default Active
+        db.create_project(&p1).unwrap();
+        db.create_project(&p2).unwrap();
+
+        let someday = db
+            .get_projects_by_status(&crate::models::ProjectStatus::Someday)
+            .unwrap();
+        assert_eq!(someday.len(), 1);
+        assert_eq!(someday[0].title, "Learn Piano");
+    }
+
+    #[test]
+    fn test_get_task_returns_none_for_unknown_id() {
+        let db = setup();
+        let result = db.get_task("ghost-task-id").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_project_returns_none_for_unknown_id() {
+        let db = setup();
+        let result = db.get_project("ghost-project-id").unwrap();
+        assert!(result.is_none());
     }
 }

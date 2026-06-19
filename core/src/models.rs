@@ -43,6 +43,9 @@ impl FromStr for ProjectStatus {
 pub enum TaskStatus {
     Inbox,
     Active,
+    /// Task deferred with no immediate commitment, mirroring the Things 3
+    /// "Someday" concept — also available on standalone tasks (not just projects).
+    Someday,
     Logbook,
     Trash,
 }
@@ -52,6 +55,7 @@ impl TaskStatus {
         match self {
             TaskStatus::Inbox => "Inbox",
             TaskStatus::Active => "Active",
+            TaskStatus::Someday => "Someday",
             TaskStatus::Logbook => "Logbook",
             TaskStatus::Trash => "Trash",
         }
@@ -65,6 +69,7 @@ impl FromStr for TaskStatus {
         match s {
             "Inbox" => Ok(TaskStatus::Inbox),
             "Active" => Ok(TaskStatus::Active),
+            "Someday" => Ok(TaskStatus::Someday),
             "Logbook" => Ok(TaskStatus::Logbook),
             "Trash" => Ok(TaskStatus::Trash),
             other => Err(format!("Unknown TaskStatus: '{}'", other)),
@@ -186,9 +191,12 @@ mod tests {
 
     #[test]
     fn test_task_status_round_trip() {
+        // Every variant must survive a round-trip through as_str() / FromStr.
+        // If a new variant is added without updating both impls, this test breaks.
         let statuses = [
             TaskStatus::Inbox,
             TaskStatus::Active,
+            TaskStatus::Someday,
             TaskStatus::Logbook,
             TaskStatus::Trash,
         ];
