@@ -6,7 +6,7 @@ This document trace fern's evolution. Completed tasks goes to `CHANGELOG.md` aft
 
 - [x] Init monorepo & doc.
 - [x] Define Rust data models (Area, Project, Task).
-- [ ] Config SQLite db (basic CRUD).
+- [x] Config SQLite db (basic CRUD).
 - [ ] Setup `uniFFI` to generate Swift bindings.
 - [ ] Crate SwiftUI basic UI (Inbox) connected to Rust core.
 
