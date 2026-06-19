@@ -3,6 +3,30 @@ use std::str::FromStr;
 use chrono::{NaiveDate, NaiveTime};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::UniffiCustomTypeConverter;
+
+// Tell uniFFI how to handle NaiveDate and NaiveTime by passing them as Strings over the FFI boundary.
+uniffi::custom_type!(NaiveDate, String);
+impl UniffiCustomTypeConverter for NaiveDate {
+    type Builtin = String;
+    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self> {
+        val.parse().map_err(|e: chrono::ParseError| e.into())
+    }
+    fn from_custom(obj: Self) -> Self::Builtin {
+        obj.to_string()
+    }
+}
+
+uniffi::custom_type!(NaiveTime, String);
+impl UniffiCustomTypeConverter for NaiveTime {
+    type Builtin = String;
+    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self> {
+        val.parse().map_err(|e: chrono::ParseError| e.into())
+    }
+    fn from_custom(obj: Self) -> Self::Builtin {
+        obj.to_string()
+    }
+}
 
 // ============================================================================
 // TaskStatus & ProjectStatus
@@ -23,7 +47,7 @@ use uuid::Uuid;
 
 /// Completion state of a Task. The view a task appears in is determined by
 /// its other fields (`scheduled_date`, `project_id`, `area_id`, `is_trashed`).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Enum)]
 pub enum TaskStatus {
     Todo,
     Done,
@@ -54,7 +78,7 @@ impl FromStr for TaskStatus {
 }
 
 /// Completion state of a Project.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Enum)]
 pub enum ProjectStatus {
     Todo,
     Done,
@@ -103,7 +127,7 @@ impl FromStr for ProjectStatus {
 /// `None` (absence of this field) means "no date" → Anytime or Inbox.
 /// `Someday` means "deferred, no concrete date" → Someday view.
 /// `On { date, time }` means "scheduled for this day, optionally at this time".
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Enum)]
 pub enum ScheduledDate {
     /// Deferred indefinitely. Item appears in the Someday view.
     Someday,
@@ -163,7 +187,7 @@ impl ScheduledDate {
 ///
 /// Areas have no status — they can only be active (visible) or archived
 /// (hidden from the sidebar, but all data is preserved).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Record)]
 pub struct Area {
     pub id: String,
     pub title: String,
@@ -198,7 +222,7 @@ impl Area {
 /// | `status=Todo`, `is_trashed=false`, date=Someday    | Someday   |
 /// | `status=Done\|Cancelled`, `is_trashed=false`       | Logbook   |
 /// | `is_trashed=true`                                  | Trash     |
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Record)]
 pub struct Project {
     pub id: String,
     pub area_id: Option<String>,
@@ -250,7 +274,7 @@ impl Project {
 ///
 /// A task completed while in the Inbox (no project, no area, no date) will
 /// appear in the Logbook — correctly preserving its origin context.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, uniffi::Record)]
 pub struct Task {
     pub id: String,
     pub project_id: Option<String>,

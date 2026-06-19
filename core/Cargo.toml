@@ -13,7 +13,8 @@ rusqlite = { version = "0.31.0", features = ["bundled"] }
 uuid = { version = "1.8.0", features = ["v7", "serde"] }
 serde = { version = "1.0", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
-uniffi = { version = "0.25", features = ["cli"] }
+uniffi = { version = "0.28.0", features = ["cli"] }
+thiserror = "2.0.18"
 
 [dev-dependencies]
 # Pour les tests unitaires du moteur de tâches
