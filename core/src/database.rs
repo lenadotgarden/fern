@@ -115,7 +115,7 @@ impl Database {
             .conn
             .prepare(&format!("{} WHERE id = ?1", AREA_SELECT))?;
         let mut rows = stmt.query_map(params![id], map_area_row)?;
-        
+
         rows.next().transpose()
     }
 
@@ -197,7 +197,7 @@ impl Database {
             .conn
             .prepare(&format!("{} WHERE id = ?1", PROJECT_SELECT))?;
         let mut rows = stmt.query_map(params![id], map_project_row)?;
-        
+
         rows.next().transpose()
     }
 
@@ -338,7 +338,7 @@ impl Database {
             .conn
             .prepare(&format!("{} WHERE id = ?1", TASK_SELECT))?;
         let mut rows = stmt.query_map(params![id], map_task_row)?;
-        
+
         rows.next().transpose()
     }
 
