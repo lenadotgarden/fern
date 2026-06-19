@@ -8,15 +8,44 @@
 
 /* Begin PBXBuildFile section */
 		FA519DE42FE5EE9800129308 /* FernApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA519DE32FE5EE9800129308 /* FernApp.swift */; };
+		FA6C1C692FE607800072D9F9 /* fern_core.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6C1C682FE607800072D9F9 /* fern_core.swift */; };
+		FA6C1C6F2FE609720072D9F9 /* FernCore.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA6C1C6E2FE609720072D9F9 /* FernCore.xcframework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		FA6C1C782FE60AD80072D9F9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000100000000;
+			remoteInfo = Fern;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* Fern.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fern.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA519DE32FE5EE9800129308 /* FernApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FernApp.swift; sourceTree = "<group>"; };
+		FA6C1C682FE607800072D9F9 /* fern_core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = fern_core.swift; sourceTree = "<group>"; };
+		FA6C1C6E2FE609720072D9F9 /* FernCore.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = FernCore.xcframework; sourceTree = "<group>"; };
+		FA6C1C742FE60AD80072D9F9 /* FernTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FernTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		FA6C1C752FE60AD80072D9F9 /* FernTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FernTests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		000000000000000130000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				FA6C1C6F2FE609720072D9F9 /* FernCore.xcframework in Frameworks */,
+			);
+		};
+		FA6C1C712FE60AD80072D9F9 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
 			);
@@ -30,6 +59,8 @@
 				FA519DE02FE5EE6800129308 /* iOS */,
 				FA519DE12FE5EE6800129308 /* MacOS */,
 				FA519DE22FE5EE6800129308 /* Shared */,
+				FA6C1C752FE60AD80072D9F9 /* FernTests */,
+				FA6C1C6D2FE609720072D9F9 /* Frameworks */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -38,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000120 /* Fern.app */,
+				FA6C1C742FE60AD80072D9F9 /* FernTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -59,9 +91,18 @@
 		FA519DE22FE5EE6800129308 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				FA6C1C682FE607800072D9F9 /* fern_core.swift */,
 				FA519DE32FE5EE9800129308 /* FernApp.swift */,
 			);
 			path = Shared;
+			sourceTree = "<group>";
+		};
+		FA6C1C6D2FE609720072D9F9 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				FA6C1C6E2FE609720072D9F9 /* FernCore.xcframework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -82,6 +123,27 @@
 			productReference = 000000000000000000000120 /* Fern.app */;
 			productType = "com.apple.product-type.application";
 		};
+		FA6C1C732FE60AD80072D9F9 /* FernTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FA6C1C7A2FE60AD80072D9F9 /* Build configuration list for PBXNativeTarget "FernTests" */;
+			buildPhases = (
+				FA6C1C702FE60AD80072D9F9 /* Sources */,
+				FA6C1C712FE60AD80072D9F9 /* Frameworks */,
+				FA6C1C722FE60AD80072D9F9 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FA6C1C792FE60AD80072D9F9 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				FA6C1C752FE60AD80072D9F9 /* FernTests */,
+			);
+			name = FernTests;
+			productName = FernTests;
+			productReference = FA6C1C742FE60AD80072D9F9 /* FernTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -89,12 +151,16 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2630;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					000000000000000100000000 = {
 						CreatedOnToolsVersion = 26.3;
 						LastSwiftMigration = 2700;
+					};
+					FA6C1C732FE60AD80072D9F9 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 000000000000000100000000;
 					};
 				};
 			};
@@ -113,12 +179,18 @@
 			projectRoot = "";
 			targets = (
 				000000000000000100000000 /* Fern */,
+				FA6C1C732FE60AD80072D9F9 /* FernTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		000000000000000140000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		FA6C1C722FE60AD80072D9F9 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -130,9 +202,23 @@
 			isa = PBXSourcesBuildPhase;
 			files = (
 				FA519DE42FE5EE9800129308 /* FernApp.swift in Sources */,
+				FA6C1C692FE607800072D9F9 /* fern_core.swift in Sources */,
+			);
+		};
+		FA6C1C702FE60AD80072D9F9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
 			);
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		FA6C1C792FE60AD80072D9F9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000100000000 /* Fern */;
+			targetProxy = FA6C1C782FE60AD80072D9F9 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		000000000000000011000000 /* Debug configuration for PBXProject "Fern" */ = {
@@ -277,6 +363,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Fern;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -316,6 +403,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Fern;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -344,6 +432,49 @@
 			};
 			name = Release;
 		};
+		FA6C1C7B2FE60AD80072D9F9 /* Debug configuration for PBXNativeTarget "FernTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "fern-team.FernTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fern.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Fern";
+			};
+			name = Debug;
+		};
+		FA6C1C7C2FE60AD80072D9F9 /* Release configuration for PBXNativeTarget "FernTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "fern-team.FernTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fern.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Fern";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -360,6 +491,14 @@
 			buildConfigurations = (
 				000000000000000111000000 /* Debug configuration for PBXNativeTarget "Fern" */,
 				000000000000000112000000 /* Release configuration for PBXNativeTarget "Fern" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		FA6C1C7A2FE60AD80072D9F9 /* Build configuration list for PBXNativeTarget "FernTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FA6C1C7B2FE60AD80072D9F9 /* Debug configuration for PBXNativeTarget "FernTests" */,
+				FA6C1C7C2FE60AD80072D9F9 /* Release configuration for PBXNativeTarget "FernTests" */,
 			);
 			defaultConfigurationName = Release;
 		};
