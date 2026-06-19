@@ -263,11 +263,13 @@ impl Database {
 
     // --- Project Views ---
 
-    /// **Anytime** — Todo projects with no scheduled date, not trashed.
-    /// (Projects with a date appear in the Calendar/Upcoming views instead.)
+    /// **Anytime** — Todo projects with no scheduled date, OR scheduled for today/past, not trashed.
     pub fn get_anytime_projects(&self) -> SqlResult<Vec<Project>> {
         let mut stmt = self.conn.prepare(&format!(
-            "{} WHERE status = 'Todo' AND is_trashed = 0 AND scheduled_date IS NULL",
+            "{} WHERE status = 'Todo' AND is_trashed = 0 \
+             AND (scheduled_date IS NULL \
+                  OR (scheduled_date != 'someday' \
+                      AND SUBSTR(scheduled_date, 1, 10) <= DATE('now', 'localtime')))",
             PROJECT_SELECT
         ))?;
         let rows = stmt.query_map([], map_project_row)?.collect();
@@ -442,12 +444,18 @@ impl Database {
         rows
     }
 
-    /// **Anytime** — Todo tasks with no scheduled date, not trashed.
-    /// This is a superset of Inbox (Inbox = Anytime tasks that are also
-    /// unassigned to any project or area).
+    /// **Anytime** — Todo tasks that you can work on right now.
+    /// Includes tasks with no scheduled date (but assigned to a project/area),
+    /// AND tasks scheduled for today or earlier.
+    /// Excludes Someday, Upcoming (future), and unorganised Inbox tasks.
     pub fn get_anytime_tasks(&self) -> SqlResult<Vec<Task>> {
         let mut stmt = self.conn.prepare(&format!(
-            "{} WHERE status = 'Todo' AND is_trashed = 0 AND scheduled_date IS NULL",
+            "{} WHERE status = 'Todo' AND is_trashed = 0 \
+             AND ( \
+                 (scheduled_date IS NULL AND (project_id IS NOT NULL OR area_id IS NOT NULL)) \
+                 OR \
+                 (scheduled_date IS NOT NULL AND scheduled_date != 'someday' AND SUBSTR(scheduled_date, 1, 10) <= DATE('now', 'localtime')) \
+             )",
             TASK_SELECT
         ))?;
         let rows = stmt.query_map([], map_task_row)?.collect();
@@ -825,16 +833,23 @@ mod tests {
         let db = setup();
 
         let p_anytime = Project::new("Active project");
+        let mut p_today = Project::new("Today project");
+        p_today.scheduled_date = Some(ScheduledDate::On {
+            date: Local::now().date_naive(),
+            time: None,
+        });
         let mut p_someday = Project::new("Someday project");
         p_someday.scheduled_date = Some(ScheduledDate::Someday);
         let p_done = Project::new("Done project");
 
         db.create_project(&p_anytime).unwrap();
+        db.create_project(&p_today).unwrap();
         db.create_project(&p_someday).unwrap();
         db.create_project(&p_done).unwrap();
         db.complete_project(&p_done.id).unwrap();
 
-        assert_eq!(db.get_anytime_projects().unwrap().len(), 1);
+        // Anytime should include both the un-scheduled project AND the today project
+        assert_eq!(db.get_anytime_projects().unwrap().len(), 2);
         assert_eq!(db.get_someday_projects().unwrap().len(), 1);
         assert_eq!(db.get_logbook_projects().unwrap().len(), 1);
         assert_eq!(db.get_trashed_projects().unwrap().len(), 0);
@@ -1066,26 +1081,55 @@ mod tests {
     }
 
     #[test]
-    fn test_anytime_view_includes_inbox_but_excludes_someday() {
+    fn test_anytime_view_includes_today_and_past_excludes_inbox_and_someday() {
         let db = setup();
 
-        let inbox = Task::new("Inbox task"); // no date → Anytime (subset: Inbox)
+        let inbox = Task::new("Inbox task"); // no date, no proj/area → Inbox (NOT Anytime)
+
         let area = Area::new("Work");
         db.create_area(&area).unwrap();
         let mut with_area = Task::new("Area task, no date"); // has area, no date → Anytime
         with_area.area_id = Some(area.id.clone());
+
         let mut someday = Task::new("Someday task");
-        someday.scheduled_date = Some(ScheduledDate::Someday);
+        someday.scheduled_date = Some(ScheduledDate::Someday); // Someday → Someday (NOT Anytime)
+
+        let mut today = Task::new("Today task");
+        today.scheduled_date = Some(ScheduledDate::On {
+            date: Local::now().date_naive(),
+            time: None,
+        }); // Today → Today AND Anytime
+
+        let mut past = Task::new("Overdue task");
+        past.scheduled_date = Some(ScheduledDate::On {
+            date: NaiveDate::from_ymd_opt(2000, 1, 1).unwrap(),
+            time: None,
+        }); // Past → Anytime (since it's not done)
 
         db.create_task(&inbox).unwrap();
         db.create_task(&with_area).unwrap();
         db.create_task(&someday).unwrap();
+        db.create_task(&today).unwrap();
+        db.create_task(&past).unwrap();
 
         let anytime = db.get_anytime_tasks().unwrap();
-        assert_eq!(anytime.len(), 2, "Inbox + area task should be Anytime");
+        // Should include: with_area, today, past
+        assert_eq!(
+            anytime.len(),
+            3,
+            "Anytime should have area tasks, today tasks, and overdue tasks"
+        );
+
+        let titles: Vec<String> = anytime.into_iter().map(|t| t.title).collect();
+        assert!(titles.contains(&"Area task, no date".to_string()));
+        assert!(titles.contains(&"Today task".to_string()));
+        assert!(titles.contains(&"Overdue task".to_string()));
 
         let someday_results = db.get_someday_tasks().unwrap();
         assert_eq!(someday_results.len(), 1);
+
+        let inbox_results = db.get_inbox_tasks().unwrap();
+        assert_eq!(inbox_results.len(), 1);
     }
 
     #[test]
