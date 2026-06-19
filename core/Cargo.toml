@@ -1,0 +1,19 @@
+[package]
+name = "fern-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Léna"]
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+name = "fern_core"
+
+[dependencies]
+rusqlite = { version = "0.31.0", features = ["bundled"] }
+uuid = { version = "1.8.0", features = ["v7", "serde"] }
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+uniffi = { version = "0.25", features = ["cli"] }
+
+[dev-dependencies]
+# Pour les tests unitaires du moteur de tâches
