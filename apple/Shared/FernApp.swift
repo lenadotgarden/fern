@@ -14,7 +14,7 @@ struct FernApp: App {
     init() {
         // Test de connexion avec Rust !
         do {
-            let api = try FernAPI.newInMemory()
+            let api = try FernApi.newInMemory()
             
             let task = Task(
                 id: UUID().uuidString,
