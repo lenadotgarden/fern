@@ -12,4 +12,11 @@ fern is, and will always, be free.
 - Storage: SQLite with UUIDv7
 - Frontends: Swift (macOS/iOS), Rust/Gtk (Linux)
 
+# Project Structure
 
+## Repository Architecture
+
+- `/core`: Rust library containing all business logic, SQLite database operations, and uniFFI bindings.
+- `/apple`: Swift/SwiftUI frontend for iOS and macOS. Contains no business logic.
+- `/linux`: Tauri frontend for Linux desktop (Vue/React + Rust).
+- `/docs`: Documentation, architecture decisions (ADRs), and strict workflow guidelines.
