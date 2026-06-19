@@ -1,0 +1,4 @@
+module fern_coreFFI {
+    header "fern_coreFFI.h"
+    export *
+}
