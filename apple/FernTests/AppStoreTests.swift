@@ -17,7 +17,7 @@ final class AppStoreTests: XCTestCase {
     func testStoreLoadsInboxTasks() throws {
         // Arrange
         let store = try AppStore(inMemory: true)
-        let task = Task(
+        let task = Fern.Task(
             id: UUID().uuidString,
             projectId: nil,
             areaId: nil,
