@@ -115,8 +115,8 @@ impl Database {
             .conn
             .prepare(&format!("{} WHERE id = ?1", AREA_SELECT))?;
         let mut rows = stmt.query_map(params![id], map_area_row)?;
-        let result = rows.next().transpose();
-        result
+
+        rows.next().transpose()
     }
 
     /// Returns all non-archived areas — use this for the sidebar.
@@ -197,8 +197,8 @@ impl Database {
             .conn
             .prepare(&format!("{} WHERE id = ?1", PROJECT_SELECT))?;
         let mut rows = stmt.query_map(params![id], map_project_row)?;
-        let result = rows.next().transpose();
-        result
+
+        rows.next().transpose()
     }
 
     /// Returns every project (all statuses, including trashed).
@@ -338,8 +338,8 @@ impl Database {
             .conn
             .prepare(&format!("{} WHERE id = ?1", TASK_SELECT))?;
         let mut rows = stmt.query_map(params![id], map_task_row)?;
-        let result = rows.next().transpose();
-        result
+
+        rows.next().transpose()
     }
 
     /// Returns every task (all statuses, including trashed).

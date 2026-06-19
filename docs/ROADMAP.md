@@ -13,8 +13,10 @@ This document trace fern's evolution. Completed tasks goes to `CHANGELOG.md` aft
 ## Milestone 2: Things-Like Structure.
 
 - [x] Implement vues logic of "Today", "Upcoming", "Anytime".
-- [ ] Add tags & filter support.
 - [x] Implement "Areas" and "Projects".
+- [ ] Add tags & filter support in Rust Core & SQLite.
+- [ ] Implement manual drag & drop ordering (order_index/position) in Rust Core.
+- [ ] Implement "Sections" for projects in Rust Core.
 
 ## Milestone 3: SuperProductivity-Like Timeblocking & Cal.
 
