@@ -2,6 +2,11 @@
 
 A FOSS productivity app based on the features SuperProductivity and the design philosophy of Things 3 based on Rust and native code (SwiftUI).
 
+## Community
+
+Here is the discord server: https://discord.gg/6UxSXPrtcH
+I'm thinking of buying a domain name for the project, I might wait a little.
+
 # Pricing
 
 fern is, and will always, be free.
