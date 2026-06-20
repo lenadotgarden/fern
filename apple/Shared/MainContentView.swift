@@ -89,12 +89,46 @@ struct MainContentView: View {
             return targetId == "header:areas" && index >= 0
         } else if draggedId.hasPrefix("project:") {
             // Projects can be moved to an Area, or to the Projects header, or reordered within them
-            return targetId == "header:projects" || targetId == "header:areas" || (targetId?.hasPrefix("area:") == true && index == -1)
+            return targetId == "header:projects" || targetId == "header:areas" || (targetId?.hasPrefix("area:") == true && index >= -1)
+        } else if draggedId.hasPrefix("task:") {
+            // Tasks can be dropped onto projects, areas, or base views (Inbox, Today, etc.)
+            if let target = targetId {
+                if target.hasPrefix("project:") || target.hasPrefix("area:") { return true }
+                if target.hasPrefix("view:") { return true }
+            }
         }
         return false
     }
     
     func handleOutlineDrop(draggedId: String, targetId: String?, index: Int) {
+        if draggedId.hasPrefix("task:") {
+            let taskId = String(draggedId.dropFirst(5))
+            if var task = store.allTasks.first(where: { $0.id == taskId }) {
+                if let target = targetId {
+                    if target.hasPrefix("project:") {
+                        task.projectId = String(target.dropFirst(8))
+                        task.areaId = store.allProjects.first(where: { $0.id == task.projectId })?.areaId
+                        store.updateTask(task: task)
+                    } else if target.hasPrefix("area:") {
+                        task.projectId = nil
+                        task.areaId = String(target.dropFirst(5))
+                        store.updateTask(task: task)
+                    } else if target.hasPrefix("view:") {
+                        let viewName = String(target.dropFirst(5))
+                        if viewName == "inbox" {
+                            task.projectId = nil
+                            task.areaId = nil
+                            store.updateTask(task: task)
+                        } else if viewName == "trash" {
+                            store.deleteTask(id: task.id)
+                        }
+                        // For Today/Upcoming/etc., we would update scheduledDate, but let's keep it simple for now
+                    }
+                }
+            }
+            return
+        }
+        
         if draggedId.hasPrefix("area:") {
             if targetId == "header:areas" && index >= 0 {
                 let aId = String(draggedId.dropFirst(5))
@@ -341,27 +375,68 @@ struct GroupedTasksView: View {
         if draggedId.hasPrefix("task:") {
             let taskId = String(draggedId.dropFirst(5))
             if var task = store.allTasks.first(where: { $0.id == taskId }) {
+                var groupChanged = false
                 if let target = targetId {
                     if target.hasPrefix("project:") {
-                        task.projectId = String(target.dropFirst(8))
-                        task.areaId = store.allProjects.first(where: { $0.id == task.projectId })?.areaId
+                        let targetProjectId = String(target.dropFirst(8))
+                        if task.projectId != targetProjectId {
+                            task.projectId = targetProjectId
+                            task.areaId = store.allProjects.first(where: { $0.id == task.projectId })?.areaId
+                            groupChanged = true
+                        }
                     } else if target.hasPrefix("area:") {
-                        task.projectId = nil
-                        task.areaId = String(target.dropFirst(5))
+                        let targetAreaId = String(target.dropFirst(5))
+                        if task.areaId != targetAreaId || task.projectId != nil {
+                            task.projectId = nil
+                            task.areaId = targetAreaId
+                            groupChanged = true
+                        }
                     } else if target == "header:orphan_projects" {
-                        task.projectId = nil
-                        task.areaId = nil
+                        if task.projectId != nil || task.areaId != nil {
+                            task.projectId = nil
+                            task.areaId = nil
+                            groupChanged = true
+                        }
                     }
                 } else {
-                    task.projectId = nil
-                    task.areaId = nil
+                    if task.projectId != nil || task.areaId != nil {
+                        task.projectId = nil
+                        task.areaId = nil
+                        groupChanged = true
+                    }
                 }
-                store.updateTask(task: task)
+                
+                if groupChanged {
+                    store.updateTask(task: task)
+                }
                 
                 if index >= 0 {
-                    let siblings = tasks.filter { $0.projectId == task.projectId && $0.areaId == task.areaId }
-                    if let sourceIndex = siblings.firstIndex(where: { $0.id == taskId }) {
-                        store.moveTask(from: IndexSet(integer: sourceIndex), to: index, tasksContext: siblings)
+                    let siblings = tasks.filter { $0.projectId == task.projectId && $0.areaId == task.areaId && $0.id != taskId }
+                    
+                    if groupChanged {
+                        // Cross-group move, calculate position directly based on insertion index
+                        let prevPos = index > 0 && index <= siblings.count ? siblings[index - 1].position : nil
+                        let nextPos = index < siblings.count ? siblings[index].position : nil
+                        
+                        let newPos: Double
+                        if let p = prevPos, let n = nextPos {
+                            newPos = (p + n) / 2.0
+                        } else if let p = prevPos {
+                            newPos = p + 1.0
+                        } else if let n = nextPos {
+                            newPos = n - 1.0
+                        } else {
+                            newPos = 0.0
+                        }
+                        
+                        task.position = newPos
+                        store.updateTask(task: task)
+                    } else {
+                        // Same group move
+                        let originalSiblings = tasks.filter { $0.projectId == task.projectId && $0.areaId == task.areaId }
+                        if let sourceIndex = originalSiblings.firstIndex(where: { $0.id == taskId }) {
+                            store.moveTask(from: IndexSet(integer: sourceIndex), to: index, tasksContext: originalSiblings)
+                        }
                     }
                 }
             }
