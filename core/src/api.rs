@@ -153,6 +153,14 @@ impl FernAPI {
             .map_err(|e| FernError::DatabaseError(e.to_string()))?;
         Ok(())
     }
+    pub fn restore_project(&self, id: String) -> Result<(), FernError> {
+        self.db
+            .lock()
+            .unwrap()
+            .restore_project(&id)
+            .map_err(|e| FernError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
 
     // =========================================================================
     // Task API
@@ -251,6 +259,14 @@ impl FernAPI {
             .lock()
             .unwrap()
             .delete_task(&id)
+            .map_err(|e| FernError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
+    pub fn restore_task(&self, id: String) -> Result<(), FernError> {
+        self.db
+            .lock()
+            .unwrap()
+            .restore_task(&id)
             .map_err(|e| FernError::DatabaseError(e.to_string()))?;
         Ok(())
     }

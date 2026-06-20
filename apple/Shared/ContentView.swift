@@ -82,6 +82,9 @@ struct SidebarView: View {
                 NavigationLink(destination: LogbookView()) {
                     Label("Logbook", systemImage: "book.closed")
                 }
+                NavigationLink(destination: TrashView()) {
+                    Label("Trash", systemImage: "trash")
+                }
             }
             
             ForEach(store.activeAreas, id: \.id) { area in
@@ -280,7 +283,18 @@ struct CreateTaskSheet: View {
 struct TaskRowView: View {
     @EnvironmentObject var store: AppStore
     let task: Task
+    var showContext: Bool = true
     @State private var showingDetail = false
+    
+    var subtitle: String? {
+        guard showContext else { return nil }
+        if let pid = task.projectId, let p = store.allProjects.first(where: { $0.id == pid }) {
+            return p.title
+        } else if let aid = task.areaId, let a = store.activeAreas.first(where: { $0.id == aid }) {
+            return a.title
+        }
+        return nil
+    }
     
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -295,10 +309,18 @@ struct TaskRowView: View {
             }
             .buttonStyle(PlainButtonStyle())
             
-            Text(task.title)
-                .font(.system(size: 15))
-                .strikethrough(task.status == .done)
-                .foregroundColor(task.status == .done ? .secondary : .primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(task.title)
+                    .font(.system(size: 15))
+                    .strikethrough(task.status == .done)
+                    .foregroundColor(task.status == .done ? .secondary : .primary)
+                
+                if let sub = subtitle {
+                    Text(sub)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
             
             Spacer()
         }
@@ -316,10 +338,18 @@ struct TaskRowView: View {
             Text(task.title).padding().background(Color(NSColor.windowBackgroundColor)).cornerRadius(8)
         }
         .contextMenu {
-            Button(role: .destructive, action: {
-                store.deleteTask(id: task.id)
-            }) {
-                Label("Delete Task", systemImage: "trash")
+            if task.isTrashed {
+                Button(action: {
+                    store.restoreTask(id: task.id)
+                }) {
+                    Label("Restore Task", systemImage: "arrow.uturn.backward")
+                }
+            } else {
+                Button(role: .destructive, action: {
+                    store.deleteTask(id: task.id)
+                }) {
+                    Label("Trash Task", systemImage: "trash")
+                }
             }
         }
     }
@@ -544,7 +574,7 @@ struct ProjectDetailView: View {
                 
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(projectTasks, id: \.id) { task in
-                        TaskRowView(task: task)
+                        TaskRowView(task: task, showContext: false)
                             .padding(.horizontal)
                         Divider().padding(.leading, 40)
                     }
@@ -646,7 +676,7 @@ struct AreaDetailView: View {
                 
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(areaTasks, id: \.id) { task in
-                        TaskRowView(task: task)
+                        TaskRowView(task: task, showContext: false)
                             .padding(.horizontal)
                         Divider().padding(.leading, 40)
                     }
@@ -691,5 +721,73 @@ struct AreaDetailView: View {
             }
         }
         .onChange(of: area.id) { _ in title = area.title }
+    }
+}
+
+struct TrashView: View {
+    @EnvironmentObject var store: AppStore
+    
+    var trashedTasks: [Task] {
+        store.allTasks.filter { $0.isTrashed }
+    }
+    
+    var trashedProjects: [Project] {
+        store.allProjects.filter { $0.isTrashed }
+    }
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Trash")
+                    .font(.largeTitle.bold())
+                    .padding(.horizontal)
+                    .padding(.top, 20)
+                
+                Divider().padding(.horizontal)
+                
+                if trashedProjects.isEmpty && trashedTasks.isEmpty {
+                    Text("Trash is empty")
+                        .foregroundColor(.secondary)
+                        .padding()
+                } else {
+                    if !trashedProjects.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Projects")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal)
+                            
+                            ForEach(trashedProjects, id: \.id) { project in
+                                HStack {
+                                    Image(systemName: "circle.circle")
+                                        .foregroundColor(.secondary)
+                                    Text(project.title)
+                                        .strikethrough()
+                                    Spacer()
+                                    Button("Restore") {
+                                        store.restoreProject(id: project.id)
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                                .padding(.horizontal)
+                                .padding(.vertical, 4)
+                            }
+                        }
+                        Divider().padding(.horizontal)
+                    }
+                    
+                    if !trashedTasks.isEmpty {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(trashedTasks, id: \.id) { task in
+                                TaskRowView(task: task)
+                                    .padding(.horizontal)
+                                Divider().padding(.leading, 40)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Trash")
     }
 }
