@@ -209,11 +209,99 @@ struct InboxView: View {
     }
 }
 
+struct GroupedTasksView: View {
+    @EnvironmentObject var store: AppStore
+    let tasks: [Task]
+    
+    var body: some View {
+        List {
+            // 1. Orphan Tasks (No Project, No Area)
+            let orphanTasks = tasks.filter { $0.projectId == nil && $0.areaId == nil }
+            if !orphanTasks.isEmpty {
+                Section {
+                    ForEach(orphanTasks, id: \.id) { task in
+                        TaskRowView(task: task)
+                    }
+                    .onMove { source, destination in
+                        store.moveTask(from: source, to: destination, tasksContext: orphanTasks)
+                    }
+                }
+            }
+            
+            // 2. Areas
+            ForEach(store.activeAreas, id: \.id) { area in
+                let areaTasks = tasks.filter { $0.areaId == area.id && $0.projectId == nil }
+                let areaProjects = store.activeProjects.filter { $0.areaId == area.id }
+                let projectsWithTasks = areaProjects.filter { p in tasks.contains(where: { $0.projectId == p.id }) }
+                
+                if !areaTasks.isEmpty || !projectsWithTasks.isEmpty {
+                    Section(header: Text(area.title).font(.headline).foregroundColor(.primary)) {
+                        if !areaTasks.isEmpty {
+                            ForEach(areaTasks, id: \.id) { task in
+                                TaskRowView(task: task)
+                            }
+                            .onMove { source, destination in
+                                store.moveTask(from: source, to: destination, tasksContext: areaTasks)
+                            }
+                        }
+                        
+                        ForEach(projectsWithTasks, id: \.id) { project in
+                            let projectTasks = tasks.filter { $0.projectId == project.id }
+                            
+                            HStack {
+                                Image(systemName: "circle.circle")
+                                Text(project.title).font(.subheadline).fontWeight(.semibold)
+                            }
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
+                            .padding(.bottom, 2)
+                            
+                            ForEach(projectTasks, id: \.id) { task in
+                                TaskRowView(task: task)
+                            }
+                            .onMove { source, destination in
+                                store.moveTask(from: source, to: destination, tasksContext: projectTasks)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 3. Orphan Projects
+            let orphanProjects = store.activeProjects.filter { $0.areaId == nil }
+            let orphanProjectsWithTasks = orphanProjects.filter { p in tasks.contains(where: { $0.projectId == p.id }) }
+            
+            if !orphanProjectsWithTasks.isEmpty {
+                Section(header: Text("Projects").font(.headline).foregroundColor(.primary)) {
+                    ForEach(orphanProjectsWithTasks, id: \.id) { project in
+                        let projectTasks = tasks.filter { $0.projectId == project.id }
+                        
+                        HStack {
+                            Image(systemName: "circle.circle")
+                            Text(project.title).font(.subheadline).fontWeight(.semibold)
+                        }
+                        .foregroundColor(.secondary)
+                        .padding(.top, 8)
+                        .padding(.bottom, 2)
+                        
+                        ForEach(projectTasks, id: \.id) { task in
+                            TaskRowView(task: task)
+                        }
+                        .onMove { source, destination in
+                            store.moveTask(from: source, to: destination, tasksContext: projectTasks)
+                        }
+                    }
+                }
+            }
+        }
+        .listStyle(.plain)
+    }
+}
+
 struct TodayView: View {
     @EnvironmentObject var store: AppStore
     var body: some View {
-        List(store.todayTasks, id: \.id) { task in TaskRowView(task: task).listRowSeparator(.visible) }
-        .listStyle(.plain)
+        GroupedTasksView(tasks: store.todayTasks)
         .navigationTitle("Today")
         .overlay { if store.todayTasks.isEmpty { Text("Nothing for today!").foregroundColor(.secondary) } }
     }
@@ -222,8 +310,7 @@ struct TodayView: View {
 struct UpcomingView: View {
     @EnvironmentObject var store: AppStore
     var body: some View {
-        List(store.upcomingTasks, id: \.id) { task in TaskRowView(task: task).listRowSeparator(.visible) }
-        .listStyle(.plain)
+        GroupedTasksView(tasks: store.upcomingTasks)
         .navigationTitle("Upcoming")
         .overlay { if store.upcomingTasks.isEmpty { Text("No upcoming tasks.").foregroundColor(.secondary) } }
     }
@@ -232,8 +319,7 @@ struct UpcomingView: View {
 struct AnytimeView: View {
     @EnvironmentObject var store: AppStore
     var body: some View {
-        List(store.anytimeTasks, id: \.id) { task in TaskRowView(task: task).listRowSeparator(.visible) }
-        .listStyle(.plain)
+        GroupedTasksView(tasks: store.anytimeTasks)
         .navigationTitle("Anytime")
         .overlay { if store.anytimeTasks.isEmpty { Text("No anytime tasks.").foregroundColor(.secondary) } }
     }
@@ -242,8 +328,7 @@ struct AnytimeView: View {
 struct SomedayView: View {
     @EnvironmentObject var store: AppStore
     var body: some View {
-        List(store.somedayTasks, id: \.id) { task in TaskRowView(task: task).listRowSeparator(.visible) }
-        .listStyle(.plain)
+        GroupedTasksView(tasks: store.somedayTasks)
         .navigationTitle("Someday")
         .overlay { if store.somedayTasks.isEmpty { Text("No someday tasks.").foregroundColor(.secondary) } }
     }
@@ -548,16 +633,14 @@ struct ProjectDetailView: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+        List {
+            Section {
                 TextField("Project Title", text: $title, onCommit: {
                     var updated = project
                     updated.title = title
                     store.updateProject(project: updated)
                 })
                 .font(.largeTitle.bold())
-                .padding(.horizontal)
-                .padding(.top, 20)
                 
                 HStack {
                     Text("Area:")
@@ -575,34 +658,31 @@ struct ProjectDetailView: View {
                         store.updateProject(project: updated)
                     }
                 }
-                .padding(.horizontal)
-                
-                Divider().padding(.horizontal)
-                
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(projectTasks, id: \.id) { task in
-                        TaskRowView(task: task, showContext: false)
-                            .padding(.horizontal)
-                        Divider().padding(.leading, 40)
-                    }
-                    
-                    Button(action: {
-                        let task = Task(id: UUID().uuidString, projectId: project.id, areaId: project.areaId, title: "New Task", notes: "", scheduledDate: nil, deadline: nil, estimatedTime: nil, spentTime: nil, status: .todo, isTrashed: false, position: 0.0)
-                        do { try store.api.createTask(task: task); store.loadAllData() } catch {}
-                    }) {
-                        HStack {
-                            Image(systemName: "plus")
-                            Text("New Task")
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(PlainButtonStyle())
+            }
+            
+            Section {
+                ForEach(projectTasks, id: \.id) { task in
+                    TaskRowView(task: task, showContext: false)
                 }
+                .onMove { source, destination in
+                    store.moveTask(from: source, to: destination, tasksContext: projectTasks)
+                }
+                
+                Button(action: {
+                    let task = Task(id: UUID().uuidString, projectId: project.id, areaId: project.areaId, title: "New Task", notes: "", scheduledDate: nil, deadline: nil, estimatedTime: nil, spentTime: nil, status: .todo, isTrashed: false, position: 0.0)
+                    do { try store.api.createTask(task: task); store.loadAllData() } catch {}
+                }) {
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("New Task")
+                        Spacer()
+                    }
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(PlainButtonStyle())
             }
         }
+        .listStyle(.plain)
         .navigationTitle(project.title)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -639,83 +719,67 @@ struct AreaDetailView: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+        List {
+            Section {
                 TextField("Area Title", text: $title, onCommit: {
                     var updated = area
                     updated.title = title
                     store.updateArea(area: updated)
                 })
                 .font(.largeTitle.bold())
-                .padding(.horizontal)
-                .padding(.top, 20)
-                
-                Divider().padding(.horizontal)
-                
-                if !areaProjects.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Projects")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                        
-                        ForEach(areaProjects, id: \.id) { project in
-                            NavigationLink(destination: ProjectDetailView(project: project).id(project.id)) {
-                                HStack {
-                                    Image(systemName: "circle.circle")
-                                        .foregroundColor(.secondary)
-                                    Text(project.title)
-                                    Spacer()
-                                }
-                                .padding(.horizontal)
-                                .padding(.vertical, 4)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .onDrag {
-                                NSItemProvider(object: "project:\(project.id)" as NSString)
-                            } preview: {
-                                Text(project.title).padding().background(Color(NSColor.windowBackgroundColor)).cornerRadius(8)
-                            }
-                        }
-                    }
-                    Divider().padding(.horizontal)
-                }
-                
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(areaTasks, id: \.id) { task in
-                        TaskRowView(task: task, showContext: false)
-                            .padding(.horizontal)
-                        Divider().padding(.leading, 40)
-                    }
-                    
-                    HStack(spacing: 20) {
-                        Button(action: {
-                            store.addProject(title: "New Project", areaId: area.id)
-                        }) {
+            }
+            
+            if !areaProjects.isEmpty {
+                Section(header: Text("Projects")) {
+                    ForEach(areaProjects, id: \.id) { project in
+                        NavigationLink(destination: ProjectDetailView(project: project).id(project.id)) {
                             HStack {
-                                Image(systemName: "plus.circle.dashed")
-                                Text("New Project")
+                                Image(systemName: "circle.circle")
+                                    .foregroundColor(.secondary)
+                                Text(project.title)
+                                Spacer()
                             }
                         }
-                        
-                        Button(action: {
-                            let task = Task(id: UUID().uuidString, projectId: nil, areaId: area.id, title: "New Task", notes: "", scheduledDate: nil, deadline: nil, estimatedTime: nil, spentTime: nil, status: .todo, isTrashed: false, position: 0.0)
-                            do { try store.api.createTask(task: task); store.loadAllData() } catch {}
-                        }) {
-                            HStack {
-                                Image(systemName: "plus.square.dashed")
-                                Text("New Task")
-                            }
-                        }
-                        Spacer()
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 12)
-                    .foregroundColor(.secondary)
-                    .buttonStyle(PlainButtonStyle())
+                    .onMove { source, destination in
+                        store.moveProject(from: source, to: destination, in: area.id)
+                    }
                 }
             }
+            
+            Section(header: Text("Tasks")) {
+                ForEach(areaTasks, id: \.id) { task in
+                    TaskRowView(task: task, showContext: false)
+                }
+                .onMove { source, destination in
+                    store.moveTask(from: source, to: destination, tasksContext: areaTasks)
+                }
+                
+                HStack(spacing: 20) {
+                    Button(action: {
+                        store.addProject(title: "New Project", areaId: area.id)
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.dashed")
+                            Text("New Project")
+                        }
+                    }
+                    
+                    Button(action: {
+                        let task = Task(id: UUID().uuidString, projectId: nil, areaId: area.id, title: "New Task", notes: "", scheduledDate: nil, deadline: nil, estimatedTime: nil, spentTime: nil, status: .todo, isTrashed: false, position: 0.0)
+                        do { try store.api.createTask(task: task); store.loadAllData() } catch {}
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.square.dashed")
+                            Text("New Task")
+                        }
+                    }
+                }
+                .foregroundColor(.secondary)
+                .buttonStyle(PlainButtonStyle())
+            }
         }
+        .listStyle(.plain)
         .navigationTitle(area.title)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
