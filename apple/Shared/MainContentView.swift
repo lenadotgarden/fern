@@ -173,6 +173,8 @@ struct SidebarItemView: View {
             Spacer()
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .draggable(item.id)
     }
 }
 
@@ -375,6 +377,8 @@ struct GroupedItemView: View {
                 Spacer()
             }
             .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .draggable(item.id)
         }
     }
 }
@@ -471,11 +475,6 @@ struct TaskRowView: View {
     
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(systemName: "line.3.horizontal")
-                .foregroundColor(.secondary)
-                .draggable(String("task:\(task.id)"))
-                .padding(.trailing, 4)
-                
             Button(action: {
                 var updated = task
                 updated.status = (task.status == .done) ? .todo : .done
@@ -504,6 +503,7 @@ struct TaskRowView: View {
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
+        .draggable("task:\(task.id)")
         .onTapGesture {
             showingDetail = true
         }
