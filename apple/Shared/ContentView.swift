@@ -92,6 +92,13 @@ struct SidebarView: View {
                     .onDrop(of: [.plainText], isTargeted: nil) { providers in
                         return handleDrop(providers: providers, areaId: area.id, projectId: nil, store: store)
                     }
+                    .contextMenu {
+                        Button(role: .destructive, action: {
+                            store.deleteArea(id: area.id)
+                        }) {
+                            Label("Delete Area", systemImage: "trash")
+                        }
+                    }
                     
                     let areaProjects = store.activeProjects.filter { $0.areaId == area.id }
                     ForEach(areaProjects, id: \.id) { project in
@@ -105,6 +112,13 @@ struct SidebarView: View {
                         }
                         .onDrop(of: [.plainText], isTargeted: nil) { providers in
                             return handleDrop(providers: providers, areaId: area.id, projectId: project.id, store: store)
+                        }
+                        .contextMenu {
+                            Button(role: .destructive, action: {
+                                store.deleteProject(id: project.id)
+                            }) {
+                                Label("Delete Project", systemImage: "trash")
+                            }
                         }
                     }
                 }
@@ -124,6 +138,13 @@ struct SidebarView: View {
                         }
                         .onDrop(of: [.plainText], isTargeted: nil) { providers in
                             return handleDrop(providers: providers, areaId: nil, projectId: project.id, store: store)
+                        }
+                        .contextMenu {
+                            Button(role: .destructive, action: {
+                                store.deleteProject(id: project.id)
+                            }) {
+                                Label("Delete Project", systemImage: "trash")
+                            }
                         }
                     }
                 }
@@ -294,6 +315,13 @@ struct TaskRowView: View {
         } preview: {
             Text(task.title).padding().background(Color(NSColor.windowBackgroundColor)).cornerRadius(8)
         }
+        .contextMenu {
+            Button(role: .destructive, action: {
+                store.deleteTask(id: task.id)
+            }) {
+                Label("Delete Task", systemImage: "trash")
+            }
+        }
     }
 }
 
@@ -446,6 +474,16 @@ struct TaskDetailView: View {
                     .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .destructiveAction) {
+                    Button(role: .destructive, action: {
+                        store.deleteTask(id: task.id)
+                        dismiss()
+                    }) {
+                        Image(systemName: "trash")
+                    }
+                }
+            }
         }
         .presentationDetents([.medium, .large])
     }
@@ -529,6 +567,16 @@ struct ProjectDetailView: View {
             }
         }
         .navigationTitle(project.title)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(role: .destructive, action: {
+                    store.deleteProject(id: project.id)
+                }) {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                }
+            }
+        }
         .onChange(of: project.id) { _ in 
             title = project.title
             selectedAreaId = project.areaId 
@@ -632,6 +680,16 @@ struct AreaDetailView: View {
             }
         }
         .navigationTitle(area.title)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(role: .destructive, action: {
+                    store.deleteArea(id: area.id)
+                }) {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                }
+            }
+        }
         .onChange(of: area.id) { _ in title = area.title }
     }
 }

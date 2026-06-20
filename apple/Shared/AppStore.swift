@@ -128,6 +128,32 @@ class AppStore: ObservableObject {
             print("❌ Failed to update area: \(error)")
         }
     }
+    func deleteTask(id: String) {
+        do {
+            try api.deleteTask(id: id)
+            loadAllData()
+        } catch {
+            print("❌ Failed to delete task: \(error)")
+        }
+    }
+    
+    func deleteProject(id: String) {
+        do {
+            try api.deleteProject(id: id)
+            loadAllData()
+        } catch {
+            print("❌ Failed to delete project: \(error)")
+        }
+    }
+    
+    func deleteArea(id: String) {
+        do {
+            try api.deleteArea(id: id)
+            loadAllData()
+        } catch {
+            print("❌ Failed to delete area: \(error)")
+        }
+    }
 }
 
 extension Task {

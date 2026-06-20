@@ -103,6 +103,14 @@ impl FernAPI {
             .map_err(|e| FernError::DatabaseError(e.to_string()))?;
         Ok(())
     }
+    pub fn delete_area(&self, id: String) -> Result<(), FernError> {
+        self.db
+            .lock()
+            .unwrap()
+            .delete_area(&id)
+            .map_err(|e| FernError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
 
     // =========================================================================
     // Project API
@@ -126,6 +134,22 @@ impl FernAPI {
             .lock()
             .unwrap()
             .complete_project(&id)
+            .map_err(|e| FernError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
+    pub fn trash_project(&self, id: String) -> Result<(), FernError> {
+        self.db
+            .lock()
+            .unwrap()
+            .trash_project(&id)
+            .map_err(|e| FernError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
+    pub fn delete_project(&self, id: String) -> Result<(), FernError> {
+        self.db
+            .lock()
+            .unwrap()
+            .delete_project(&id)
             .map_err(|e| FernError::DatabaseError(e.to_string()))?;
         Ok(())
     }
@@ -219,6 +243,14 @@ impl FernAPI {
             .lock()
             .unwrap()
             .trash_task(&id)
+            .map_err(|e| FernError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
+    pub fn delete_task(&self, id: String) -> Result<(), FernError> {
+        self.db
+            .lock()
+            .unwrap()
+            .delete_task(&id)
             .map_err(|e| FernError::DatabaseError(e.to_string()))?;
         Ok(())
     }
