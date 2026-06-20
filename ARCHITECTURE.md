@@ -38,8 +38,16 @@ We follow a strict Test-Driven Development (TDD) methodology.
 ## Current State & Next Steps
 - We have basic CRUD for Tasks, Projects, and Areas.
 - Global views (Inbox, Today, Anytime, Someday, Logbook) are wired.
-- Next major features to implement in the Rust Core:
-  - Manual sorting (for future UI Drag & Drop).
-  - Tags and Filtering.
-  - Sub-task checklists.
-  - Trash / Deletion mechanisms.
+
+## Upcoming UX/UI Roadmap (Before resuming Rust core work)
+The user has specifically requested the following UI improvements to be implemented next:
+1. **Unified Area/Project Selector**: Combine the Area and Project pickers into a single, cohesive hierarchical menu for tasks, avoiding confusing UI and ensuring strict consistency.
+2. **Batch Editing**: Allow multi-selection of tasks to perform bulk actions (e.g., move, schedule, delete).
+3. **Structural Drag & Drop (Moving Items)**: Implement drag and drop specifically for moving items across the hierarchy (e.g., dragging a Task into a Project or Area, moving a Project from one Area to another, or moving to "No Area"). This is distinct from manual reordering.
+
+## Next Major Core (Rust) Features
+Once the UX foundations above are stable, we will implement:
+- Manual sorting (for future UI Drag & Drop ordering).
+- Tags and Filtering.
+- Sub-task checklists.
+- Trash / Deletion mechanisms.
