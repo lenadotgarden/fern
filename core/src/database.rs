@@ -249,6 +249,10 @@ impl Database {
     /// Does NOT change the status — a Done project can also be in Trash.
     pub fn trash_project(&self, id: &str) -> SqlResult<usize> {
         self.conn.execute(
+            "UPDATE tasks SET is_trashed = 1 WHERE project_id = ?1",
+            params![id],
+        )?;
+        self.conn.execute(
             "UPDATE projects SET is_trashed = 1 WHERE id = ?1",
             params![id],
         )
@@ -266,6 +270,10 @@ impl Database {
 
     /// Recovers a trashed Project, making it visible again in its previous view.
     pub fn restore_project(&self, id: &str) -> SqlResult<usize> {
+        self.conn.execute(
+            "UPDATE tasks SET is_trashed = 0 WHERE project_id = ?1",
+            params![id],
+        )?;
         self.conn.execute(
             "UPDATE projects SET is_trashed = 0 WHERE id = ?1",
             params![id],

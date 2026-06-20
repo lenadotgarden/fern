@@ -130,7 +130,7 @@ class AppStore: ObservableObject {
     }
     func deleteTask(id: String) {
         do {
-            try api.deleteTask(id: id)
+            try api.trashTask(id: id)
             loadAllData()
         } catch {
             print("❌ Failed to delete task: \(error)")
@@ -139,10 +139,28 @@ class AppStore: ObservableObject {
     
     func deleteProject(id: String) {
         do {
-            try api.deleteProject(id: id)
+            try api.trashProject(id: id)
             loadAllData()
         } catch {
             print("❌ Failed to delete project: \(error)")
+        }
+    }
+    
+    func restoreTask(id: String) {
+        do {
+            try api.restoreTask(id: id)
+            loadAllData()
+        } catch {
+            print("❌ Failed to restore task: \(error)")
+        }
+    }
+    
+    func restoreProject(id: String) {
+        do {
+            try api.restoreProject(id: id)
+            loadAllData()
+        } catch {
+            print("❌ Failed to restore project: \(error)")
         }
     }
     
