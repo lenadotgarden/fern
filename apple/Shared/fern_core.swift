@@ -415,6 +415,22 @@ fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
+    typealias FfiType = Double
+    typealias SwiftType = Double
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Double {
+        return try lift(readDouble(&buf))
+    }
+
+    public static func write(_ value: Double, into buf: inout [UInt8]) {
+        writeDouble(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterBool : FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
@@ -531,9 +547,15 @@ public protocol FernApiProtocol : AnyObject {
     
     func trashTask(id: String) throws 
     
+    func unarchiveArea(id: String) throws 
+    
     func updateArea(area: Area) throws 
     
+    func updateAreaPosition(id: String, newPosition: Double) throws 
+    
     func updateProject(project: Project) throws 
+    
+    func updateProjectPosition(id: String, newPosition: Double) throws 
     
     func updateTask(task: Task) throws 
     
@@ -774,6 +796,13 @@ open func trashTask(id: String)throws  {try rustCallWithError(FfiConverterTypeFe
 }
 }
     
+open func unarchiveArea(id: String)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_unarchive_area(self.uniffiClonePointer(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
 open func updateArea(area: Area)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
     uniffi_fern_core_fn_method_fernapi_update_area(self.uniffiClonePointer(),
         FfiConverterTypeArea.lower(area),$0
@@ -781,9 +810,25 @@ open func updateArea(area: Area)throws  {try rustCallWithError(FfiConverterTypeF
 }
 }
     
+open func updateAreaPosition(id: String, newPosition: Double)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_update_area_position(self.uniffiClonePointer(),
+        FfiConverterString.lower(id),
+        FfiConverterDouble.lower(newPosition),$0
+    )
+}
+}
+    
 open func updateProject(project: Project)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
     uniffi_fern_core_fn_method_fernapi_update_project(self.uniffiClonePointer(),
         FfiConverterTypeProject.lower(project),$0
+    )
+}
+}
+    
+open func updateProjectPosition(id: String, newPosition: Double)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_update_project_position(self.uniffiClonePointer(),
+        FfiConverterString.lower(id),
+        FfiConverterDouble.lower(newPosition),$0
     )
 }
 }
@@ -865,6 +910,10 @@ public struct Area {
      * remain queryable and are preserved for history and future sync.
      */
     public var isArchived: Bool
+    /**
+     * Manual sort order. Fractional indexing is used for efficient reordering.
+     */
+    public var position: Double
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -872,11 +921,15 @@ public struct Area {
         /**
          * Archived areas are hidden but never deleted. All their projects and tasks
          * remain queryable and are preserved for history and future sync.
-         */isArchived: Bool) {
+         */isArchived: Bool, 
+        /**
+         * Manual sort order. Fractional indexing is used for efficient reordering.
+         */position: Double) {
         self.id = id
         self.title = title
         self.notes = notes
         self.isArchived = isArchived
+        self.position = position
     }
 }
 
@@ -896,6 +949,9 @@ extension Area: Equatable, Hashable {
         if lhs.isArchived != rhs.isArchived {
             return false
         }
+        if lhs.position != rhs.position {
+            return false
+        }
         return true
     }
 
@@ -904,6 +960,7 @@ extension Area: Equatable, Hashable {
         hasher.combine(title)
         hasher.combine(notes)
         hasher.combine(isArchived)
+        hasher.combine(position)
     }
 }
 
@@ -918,7 +975,8 @@ public struct FfiConverterTypeArea: FfiConverterRustBuffer {
                 id: FfiConverterString.read(from: &buf), 
                 title: FfiConverterString.read(from: &buf), 
                 notes: FfiConverterString.read(from: &buf), 
-                isArchived: FfiConverterBool.read(from: &buf)
+                isArchived: FfiConverterBool.read(from: &buf), 
+                position: FfiConverterDouble.read(from: &buf)
         )
     }
 
@@ -927,6 +985,7 @@ public struct FfiConverterTypeArea: FfiConverterRustBuffer {
         FfiConverterString.write(value.title, into: &buf)
         FfiConverterString.write(value.notes, into: &buf)
         FfiConverterBool.write(value.isArchived, into: &buf)
+        FfiConverterDouble.write(value.position, into: &buf)
     }
 }
 
@@ -978,6 +1037,10 @@ public struct Project {
      * a Done project can also be trashed (and vice-versa).
      */
     public var isTrashed: Bool
+    /**
+     * Manual sort order.
+     */
+    public var position: Double
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -992,7 +1055,10 @@ public struct Project {
         /**
          * If true, the project is in the Trash. Independent of `status`:
          * a Done project can also be trashed (and vice-versa).
-         */isTrashed: Bool) {
+         */isTrashed: Bool, 
+        /**
+         * Manual sort order.
+         */position: Double) {
         self.id = id
         self.areaId = areaId
         self.title = title
@@ -1001,6 +1067,7 @@ public struct Project {
         self.deadline = deadline
         self.status = status
         self.isTrashed = isTrashed
+        self.position = position
     }
 }
 
@@ -1032,6 +1099,9 @@ extension Project: Equatable, Hashable {
         if lhs.isTrashed != rhs.isTrashed {
             return false
         }
+        if lhs.position != rhs.position {
+            return false
+        }
         return true
     }
 
@@ -1044,6 +1114,7 @@ extension Project: Equatable, Hashable {
         hasher.combine(deadline)
         hasher.combine(status)
         hasher.combine(isTrashed)
+        hasher.combine(position)
     }
 }
 
@@ -1062,7 +1133,8 @@ public struct FfiConverterTypeProject: FfiConverterRustBuffer {
                 scheduledDate: FfiConverterOptionTypeScheduledDate.read(from: &buf), 
                 deadline: FfiConverterOptionTypeNaiveDate.read(from: &buf), 
                 status: FfiConverterTypeProjectStatus.read(from: &buf), 
-                isTrashed: FfiConverterBool.read(from: &buf)
+                isTrashed: FfiConverterBool.read(from: &buf), 
+                position: FfiConverterDouble.read(from: &buf)
         )
     }
 
@@ -1075,6 +1147,7 @@ public struct FfiConverterTypeProject: FfiConverterRustBuffer {
         FfiConverterOptionTypeNaiveDate.write(value.deadline, into: &buf)
         FfiConverterTypeProjectStatus.write(value.status, into: &buf)
         FfiConverterBool.write(value.isTrashed, into: &buf)
+        FfiConverterDouble.write(value.position, into: &buf)
     }
 }
 
@@ -1939,10 +2012,19 @@ private var initializationResult: InitializationResult = {
     if (uniffi_fern_core_checksum_method_fernapi_trash_task() != 30136) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_fern_core_checksum_method_fernapi_unarchive_area() != 477) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_fern_core_checksum_method_fernapi_update_area() != 61925) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_fern_core_checksum_method_fernapi_update_area_position() != 64483) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_fern_core_checksum_method_fernapi_update_project() != 1627) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_fern_core_checksum_method_fernapi_update_project_position() != 22516) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_fern_core_checksum_method_fernapi_update_task() != 53784) {
