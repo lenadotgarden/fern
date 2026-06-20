@@ -42,8 +42,16 @@ impl FernAPI {
     // =========================================================================
     // Area API
     // =========================================================================
+    pub fn update_project(&self, project: Project) -> Result<(), FernError> {
+        self.db.lock().unwrap().update_project(&project).map(|_| ()).map_err(|e| FernError::DatabaseError(e.to_string()))
+    }
+    
     pub fn create_area(&self, area: Area) -> Result<(), FernError> {
         self.db.lock().unwrap().create_area(&area).map_err(|e| FernError::DatabaseError(e.to_string()))
+    }
+
+    pub fn update_area(&self, area: Area) -> Result<(), FernError> {
+        self.db.lock().unwrap().update_area(&area).map(|_| ()).map_err(|e| FernError::DatabaseError(e.to_string()))
     }
     pub fn get_active_areas(&self) -> Result<Vec<Area>, FernError> {
         self.db.lock().unwrap().get_active_areas().map_err(|e| FernError::DatabaseError(e.to_string()))
@@ -69,8 +77,17 @@ impl FernAPI {
     // Task API
     // =========================================================================
     pub fn create_task(&self, task: Task) -> Result<(), FernError> {
-        self.db.lock().unwrap().create_task(&task).map_err(|e| FernError::DatabaseError(e.to_string()))
+        let db = self.db.lock().unwrap();
+        db.create_task(&task).map_err(|e| FernError::DatabaseError(e.to_string()))?;
+        Ok(())
     }
+    
+    pub fn update_task(&self, task: Task) -> Result<(), FernError> {
+        let db = self.db.lock().unwrap();
+        db.update_task(&task).map_err(|e| FernError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
+
     pub fn get_inbox_tasks(&self) -> Result<Vec<Task>, FernError> {
         self.db.lock().unwrap().get_inbox_tasks().map_err(|e| FernError::DatabaseError(e.to_string()))
     }

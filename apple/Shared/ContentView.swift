@@ -47,6 +47,34 @@ struct SidebarView: View {
                     Label("Logbook", systemImage: "book.closed")
                 }
             }
+            
+            Section("Projects") {
+                ForEach(store.activeProjects, id: \.id) { project in
+                    NavigationLink(destination: ProjectDetailView(project: project)) {
+                        Text(project.title)
+                    }
+                }
+                Button(action: {
+                    store.addProject(title: "New Project")
+                }) {
+                    Label("Add Project", systemImage: "plus")
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            
+            Section("Areas") {
+                ForEach(store.activeAreas, id: \.id) { area in
+                    NavigationLink(destination: AreaDetailView(area: area)) {
+                        Text(area.title)
+                    }
+                }
+                Button(action: {
+                    store.addArea(title: "New Area")
+                }) {
+                    Label("Add Area", systemImage: "plus")
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
         }
         .listStyle(.sidebar)
         .navigationTitle("Fern")
@@ -196,12 +224,29 @@ struct TaskDetailView: View {
     @State private var title: String
     @State private var notes: String
     
+    @State private var hasScheduledDate: Bool
+    @State private var scheduledDate: Date
+    @State private var selectedProjectId: String?
+    @State private var selectedAreaId: String?
+    
     var task: Task
     
     init(task: Task) {
         self.task = task
         _title = State(initialValue: task.title)
         _notes = State(initialValue: task.notes)
+        _selectedProjectId = State(initialValue: task.projectId)
+        _selectedAreaId = State(initialValue: task.areaId)
+        
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        if let sd = task.scheduledDate, case let .on(dateStr, _) = sd, let d = df.date(from: dateStr) {
+            _hasScheduledDate = State(initialValue: true)
+            _scheduledDate = State(initialValue: d)
+        } else {
+            _hasScheduledDate = State(initialValue: false)
+            _scheduledDate = State(initialValue: Date())
+        }
     }
     
     var body: some View {
@@ -212,6 +257,29 @@ struct TaskDetailView: View {
                     TextField("Notes", text: $notes, axis: .vertical)
                         .lineLimit(3...10)
                 }
+                
+                Section("Organisation") {
+                    Picker("Area", selection: $selectedAreaId) {
+                        Text("None").tag(String?.none)
+                        ForEach(store.activeAreas, id: \.id) { area in
+                            Text(area.title).tag(String?(area.id))
+                        }
+                    }
+                    Picker("Project", selection: $selectedProjectId) {
+                        Text("None").tag(String?.none)
+                        ForEach(store.activeProjects, id: \.id) { project in
+                            Text(project.title).tag(String?(project.id))
+                        }
+                    }
+                }
+                
+                Section("Scheduling") {
+                    Toggle("Schedule Task", isOn: $hasScheduledDate)
+                    if hasScheduledDate {
+                        DatePicker("Date", selection: $scheduledDate, displayedComponents: .date)
+                            .datePickerStyle(.graphical)
+                    }
+                }
             }
             .navigationTitle("Edit Task")
             .toolbar {
@@ -220,9 +288,20 @@ struct TaskDetailView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        let df = DateFormatter()
+                        df.dateFormat = "yyyy-MM-dd"
+                        
                         var updated = task
                         updated.title = title
                         updated.notes = notes
+                        updated.projectId = selectedProjectId
+                        updated.areaId = selectedAreaId
+                        if hasScheduledDate {
+                            updated.scheduledDate = .on(date: df.string(from: scheduledDate), time: nil)
+                        } else {
+                            updated.scheduledDate = nil
+                        }
+                        
                         store.updateTask(task: updated)
                         dismiss()
                     }
@@ -237,4 +316,54 @@ struct TaskDetailView: View {
 #Preview {
     ContentView()
         .environmentObject(try! AppStore(inMemory: true))
+}
+
+struct ProjectDetailView: View {
+    @EnvironmentObject var store: AppStore
+    var project: Project
+    @State private var title: String
+    
+    init(project: Project) {
+        self.project = project
+        _title = State(initialValue: project.title)
+    }
+    
+    var body: some View {
+        VStack {
+            TextField("Project Title", text: $title, onCommit: {
+                var updated = project
+                updated.title = title
+                store.updateProject(project: updated)
+            })
+            .font(.title)
+            .padding()
+            Spacer()
+        }
+        .navigationTitle("Project")
+    }
+}
+
+struct AreaDetailView: View {
+    @EnvironmentObject var store: AppStore
+    var area: Area
+    @State private var title: String
+    
+    init(area: Area) {
+        self.area = area
+        _title = State(initialValue: area.title)
+    }
+    
+    var body: some View {
+        VStack {
+            TextField("Area Title", text: $title, onCommit: {
+                var updated = area
+                updated.title = title
+                store.updateArea(area: updated)
+            })
+            .font(.title)
+            .padding()
+            Spacer()
+        }
+        .navigationTitle("Area")
+    }
 }

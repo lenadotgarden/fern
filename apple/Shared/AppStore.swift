@@ -12,6 +12,9 @@ class AppStore: ObservableObject {
     @Published var somedayTasks: [Task] = []
     @Published var logbookTasks: [Task] = []
     
+    @Published var activeAreas: [Area] = []
+    @Published var activeProjects: [Project] = []
+    
     init(inMemory: Bool = false) throws {
         if inMemory {
             self.api = try FernApi.newInMemory()
@@ -30,8 +33,10 @@ class AppStore: ObservableObject {
             self.anytimeTasks = try api.getAnytimeTasks()
             self.somedayTasks = try api.getSomedayTasks()
             self.logbookTasks = try api.getLogbookTasks()
+            self.activeAreas = try api.getActiveAreas()
+            self.activeProjects = try api.getAnytimeProjects()
         } catch {
-            print("❌ Failed to load tasks: \(error)")
+            print("❌ Failed to load data: \(error)")
         }
     }
     
@@ -63,6 +68,58 @@ class AppStore: ObservableObject {
             loadAllData()
         } catch {
             print("❌ Failed to update task: \(error)")
+        }
+    }
+    
+    func addProject(title: String) {
+        let project = Project(
+            id: UUID().uuidString,
+            areaId: nil,
+            title: title,
+            notes: "",
+            scheduledDate: nil,
+            deadline: nil,
+            status: .todo,
+            isTrashed: false
+        )
+        do {
+            try api.createProject(project: project)
+            loadAllData()
+        } catch {
+            print("❌ Failed to create project: \(error)")
+        }
+    }
+    
+    func updateProject(project: Project) {
+        do {
+            try api.updateProject(project: project)
+            loadAllData()
+        } catch {
+            print("❌ Failed to update project: \(error)")
+        }
+    }
+    
+    func addArea(title: String) {
+        let area = Area(
+            id: UUID().uuidString,
+            title: title,
+            notes: "",
+            isArchived: false
+        )
+        do {
+            try api.createArea(area: area)
+            loadAllData()
+        } catch {
+            print("❌ Failed to create area: \(error)")
+        }
+    }
+    
+    func updateArea(area: Area) {
+        do {
+            try api.updateArea(area: area)
+            loadAllData()
+        } catch {
+            print("❌ Failed to update area: \(error)")
         }
     }
 }
