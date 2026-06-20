@@ -18,12 +18,11 @@ struct MainContentView: View {
     }
 }
 
-func handleDropStrings(_ items: [String], areaId: String?, projectId: String?, store: AppStore) -> Bool {
+func handleDropItems(_ items: [FernItem], areaId: String?, projectId: String?, store: AppStore) -> Bool {
     var handled = false
-    for string in items {
-        if string.hasPrefix("task:") {
-            let taskId = String(string.dropFirst(5))
-            if var task = store.allTasks.first(where: { $0.id == taskId }) {
+    for item in items {
+        if item.type == "task" {
+            if var task = store.allTasks.first(where: { $0.id == item.id }) {
                 task.areaId = areaId
                 task.projectId = projectId
                 if projectId != nil && areaId == nil {
@@ -32,9 +31,8 @@ func handleDropStrings(_ items: [String], areaId: String?, projectId: String?, s
                 store.updateTask(task: task)
                 handled = true
             }
-        } else if string.hasPrefix("project:") {
-            let pId = String(string.dropFirst(8))
-            if var project = store.allProjects.first(where: { $0.id == pId }) {
+        } else if item.type == "project" {
+            if var project = store.allProjects.first(where: { $0.id == item.id }) {
                 project.areaId = areaId
                 store.updateProject(project: project)
                 handled = true
@@ -54,8 +52,8 @@ struct SidebarView: View {
                     Label("Inbox", systemImage: "tray")
                         .badge(store.inboxTasks.count)
                 }
-                .dropDestination(for: String.self) { items, _ in
-                    return handleDropStrings(items, areaId: nil, projectId: nil, store: store)
+                .dropDestination(for: FernItem.self) { items, _ in
+                    return handleDropItems(items, areaId: nil, projectId: nil, store: store)
                 }
                 NavigationLink(destination: TodayView()) {
                     Label("Today", systemImage: "star")
@@ -86,8 +84,8 @@ struct SidebarView: View {
                     NavigationLink(destination: AreaDetailView(area: area).id(area.id)) {
                         Label(area.title, systemImage: "square.grid.2x2")
                     }
-                    .dropDestination(for: String.self) { items, _ in
-                        return handleDropStrings(items, areaId: area.id, projectId: nil, store: store)
+                    .dropDestination(for: FernItem.self) { items, _ in
+                        return handleDropItems(items, areaId: area.id, projectId: nil, store: store)
                     }
                     .contextMenu {
                         Button(role: .destructive, action: {
@@ -102,9 +100,9 @@ struct SidebarView: View {
                         NavigationLink(destination: ProjectDetailView(project: project).id(project.id)) {
                             Label(project.title, systemImage: "circle.circle")
                         }
-                        .draggable("project:\(project.id)")
-                        .dropDestination(for: String.self) { items, _ in
-                            return handleDropStrings(items, areaId: area.id, projectId: project.id, store: store)
+                        .draggable(FernItem(id: project.id, type: "project"))
+                        .dropDestination(for: FernItem.self) { items, _ in
+                            return handleDropItems(items, areaId: area.id, projectId: project.id, store: store)
                         }
                         .contextMenu {
                             Button(role: .destructive, action: {
@@ -130,9 +128,9 @@ struct SidebarView: View {
                         NavigationLink(destination: ProjectDetailView(project: project).id(project.id)) {
                             Label(project.title, systemImage: "circle.circle")
                         }
-                        .draggable("project:\(project.id)")
-                        .dropDestination(for: String.self) { items, _ in
-                            return handleDropStrings(items, areaId: nil, projectId: project.id, store: store)
+                        .draggable(FernItem(id: project.id, type: "project"))
+                        .dropDestination(for: FernItem.self) { items, _ in
+                            return handleDropItems(items, areaId: nil, projectId: project.id, store: store)
                         }
                         .contextMenu {
                             Button(role: .destructive, action: {
