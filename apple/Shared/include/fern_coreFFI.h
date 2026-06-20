@@ -302,9 +302,34 @@ void uniffi_fern_core_fn_method_fernapi_create_project(void*_Nonnull ptr, RustBu
 void uniffi_fern_core_fn_method_fernapi_create_task(void*_Nonnull ptr, RustBuffer task, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_DELETE_AREA
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_DELETE_AREA
+void uniffi_fern_core_fn_method_fernapi_delete_area(void*_Nonnull ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_DELETE_PROJECT
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_DELETE_PROJECT
+void uniffi_fern_core_fn_method_fernapi_delete_project(void*_Nonnull ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_DELETE_TASK
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_DELETE_TASK
+void uniffi_fern_core_fn_method_fernapi_delete_task(void*_Nonnull ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_GET_ACTIVE_AREAS
 #define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_GET_ACTIVE_AREAS
 RustBuffer uniffi_fern_core_fn_method_fernapi_get_active_areas(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_GET_ALL_PROJECTS
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_GET_ALL_PROJECTS
+RustBuffer uniffi_fern_core_fn_method_fernapi_get_all_projects(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_GET_ALL_TASKS
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_GET_ALL_TASKS
+RustBuffer uniffi_fern_core_fn_method_fernapi_get_all_tasks(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_GET_ANYTIME_PROJECTS
@@ -342,9 +367,39 @@ RustBuffer uniffi_fern_core_fn_method_fernapi_get_today_tasks(void*_Nonnull ptr,
 RustBuffer uniffi_fern_core_fn_method_fernapi_get_upcoming_tasks(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_RESTORE_PROJECT
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_RESTORE_PROJECT
+void uniffi_fern_core_fn_method_fernapi_restore_project(void*_Nonnull ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_RESTORE_TASK
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_RESTORE_TASK
+void uniffi_fern_core_fn_method_fernapi_restore_task(void*_Nonnull ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_TRASH_PROJECT
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_TRASH_PROJECT
+void uniffi_fern_core_fn_method_fernapi_trash_project(void*_Nonnull ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_TRASH_TASK
 #define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_TRASH_TASK
 void uniffi_fern_core_fn_method_fernapi_trash_task(void*_Nonnull ptr, RustBuffer id, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_UPDATE_AREA
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_UPDATE_AREA
+void uniffi_fern_core_fn_method_fernapi_update_area(void*_Nonnull ptr, RustBuffer area, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_UPDATE_PROJECT
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_UPDATE_PROJECT
+void uniffi_fern_core_fn_method_fernapi_update_project(void*_Nonnull ptr, RustBuffer project, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_UPDATE_TASK
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_UPDATE_TASK
+void uniffi_fern_core_fn_method_fernapi_update_task(void*_Nonnull ptr, RustBuffer task, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_FERN_CORE_RUSTBUFFER_ALLOC
@@ -663,9 +718,39 @@ uint16_t uniffi_fern_core_checksum_method_fernapi_create_task(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_DELETE_AREA
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_DELETE_AREA
+uint16_t uniffi_fern_core_checksum_method_fernapi_delete_area(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_DELETE_PROJECT
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_DELETE_PROJECT
+uint16_t uniffi_fern_core_checksum_method_fernapi_delete_project(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_DELETE_TASK
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_DELETE_TASK
+uint16_t uniffi_fern_core_checksum_method_fernapi_delete_task(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_GET_ACTIVE_AREAS
 #define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_GET_ACTIVE_AREAS
 uint16_t uniffi_fern_core_checksum_method_fernapi_get_active_areas(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_GET_ALL_PROJECTS
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_GET_ALL_PROJECTS
+uint16_t uniffi_fern_core_checksum_method_fernapi_get_all_projects(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_GET_ALL_TASKS
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_GET_ALL_TASKS
+uint16_t uniffi_fern_core_checksum_method_fernapi_get_all_tasks(void
     
 );
 #endif
@@ -711,9 +796,45 @@ uint16_t uniffi_fern_core_checksum_method_fernapi_get_upcoming_tasks(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_RESTORE_PROJECT
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_RESTORE_PROJECT
+uint16_t uniffi_fern_core_checksum_method_fernapi_restore_project(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_RESTORE_TASK
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_RESTORE_TASK
+uint16_t uniffi_fern_core_checksum_method_fernapi_restore_task(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_TRASH_PROJECT
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_TRASH_PROJECT
+uint16_t uniffi_fern_core_checksum_method_fernapi_trash_project(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_TRASH_TASK
 #define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_TRASH_TASK
 uint16_t uniffi_fern_core_checksum_method_fernapi_trash_task(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_UPDATE_AREA
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_UPDATE_AREA
+uint16_t uniffi_fern_core_checksum_method_fernapi_update_area(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_UPDATE_PROJECT
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_UPDATE_PROJECT
+uint16_t uniffi_fern_core_checksum_method_fernapi_update_project(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_UPDATE_TASK
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_UPDATE_TASK
+uint16_t uniffi_fern_core_checksum_method_fernapi_update_task(void
     
 );
 #endif

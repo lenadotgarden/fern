@@ -497,7 +497,17 @@ public protocol FernApiProtocol : AnyObject {
     
     func createTask(task: Task) throws 
     
+    func deleteArea(id: String) throws 
+    
+    func deleteProject(id: String) throws 
+    
+    func deleteTask(id: String) throws 
+    
     func getActiveAreas() throws  -> [Area]
+    
+    func getAllProjects() throws  -> [Project]
+    
+    func getAllTasks() throws  -> [Task]
     
     func getAnytimeProjects() throws  -> [Project]
     
@@ -513,7 +523,17 @@ public protocol FernApiProtocol : AnyObject {
     
     func getUpcomingTasks() throws  -> [Task]
     
+    func restoreProject(id: String) throws 
+    
+    func restoreTask(id: String) throws 
+    
+    func trashProject(id: String) throws 
+    
     func trashTask(id: String) throws 
+    
+    func updateArea(area: Area) throws 
+    
+    func updateProject(project: Project) throws 
     
     func updateTask(task: Task) throws 
     
@@ -635,9 +655,44 @@ open func createTask(task: Task)throws  {try rustCallWithError(FfiConverterTypeF
 }
 }
     
+open func deleteArea(id: String)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_delete_area(self.uniffiClonePointer(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+open func deleteProject(id: String)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_delete_project(self.uniffiClonePointer(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+open func deleteTask(id: String)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_delete_task(self.uniffiClonePointer(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
 open func getActiveAreas()throws  -> [Area] {
     return try  FfiConverterSequenceTypeArea.lift(try rustCallWithError(FfiConverterTypeFernError.lift) {
     uniffi_fern_core_fn_method_fernapi_get_active_areas(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getAllProjects()throws  -> [Project] {
+    return try  FfiConverterSequenceTypeProject.lift(try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_get_all_projects(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getAllTasks()throws  -> [Task] {
+    return try  FfiConverterSequenceTypeTask.lift(try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_get_all_tasks(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -691,9 +746,44 @@ open func getUpcomingTasks()throws  -> [Task] {
 })
 }
     
+open func restoreProject(id: String)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_restore_project(self.uniffiClonePointer(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+open func restoreTask(id: String)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_restore_task(self.uniffiClonePointer(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+open func trashProject(id: String)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_trash_project(self.uniffiClonePointer(),
+        FfiConverterString.lower(id),$0
+    )
+}
+}
+    
 open func trashTask(id: String)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
     uniffi_fern_core_fn_method_fernapi_trash_task(self.uniffiClonePointer(),
         FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+open func updateArea(area: Area)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_update_area(self.uniffiClonePointer(),
+        FfiConverterTypeArea.lower(area),$0
+    )
+}
+}
+    
+open func updateProject(project: Project)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_update_project(self.uniffiClonePointer(),
+        FfiConverterTypeProject.lower(project),$0
     )
 }
 }
@@ -1798,7 +1888,22 @@ private var initializationResult: InitializationResult = {
     if (uniffi_fern_core_checksum_method_fernapi_create_task() != 31908) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_fern_core_checksum_method_fernapi_delete_area() != 45002) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_fern_core_checksum_method_fernapi_delete_project() != 8842) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_fern_core_checksum_method_fernapi_delete_task() != 56619) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_fern_core_checksum_method_fernapi_get_active_areas() != 15278) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_fern_core_checksum_method_fernapi_get_all_projects() != 30293) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_fern_core_checksum_method_fernapi_get_all_tasks() != 29956) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_fern_core_checksum_method_fernapi_get_anytime_projects() != 48995) {
@@ -1822,7 +1927,22 @@ private var initializationResult: InitializationResult = {
     if (uniffi_fern_core_checksum_method_fernapi_get_upcoming_tasks() != 62382) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_fern_core_checksum_method_fernapi_restore_project() != 16632) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_fern_core_checksum_method_fernapi_restore_task() != 10093) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_fern_core_checksum_method_fernapi_trash_project() != 60566) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_fern_core_checksum_method_fernapi_trash_task() != 30136) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_fern_core_checksum_method_fernapi_update_area() != 61925) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_fern_core_checksum_method_fernapi_update_project() != 1627) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_fern_core_checksum_method_fernapi_update_task() != 53784) {
