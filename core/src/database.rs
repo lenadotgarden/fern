@@ -164,8 +164,9 @@ impl Database {
     /// delete will also cascade-orphan any child projects and tasks if FK
     /// constraints are not enforced at call time.
     pub fn delete_area(&self, id: &str) -> SqlResult<usize> {
-        self.conn
-            .execute("DELETE FROM areas WHERE id = ?1", params![id])
+        self.conn.execute("DELETE FROM tasks WHERE area_id = ?1", params![id])?;
+        self.conn.execute("DELETE FROM projects WHERE area_id = ?1", params![id])?;
+        self.conn.execute("DELETE FROM areas WHERE id = ?1", params![id])
     }
 
     // =========================================================================
@@ -251,6 +252,16 @@ impl Database {
             "UPDATE projects SET is_trashed = 1 WHERE id = ?1",
             params![id],
         )
+    }
+
+    /// Hard-deletes a Task.
+    pub fn delete_task(&self, id: &str) -> SqlResult<usize> {
+        self.conn.execute("DELETE FROM tasks WHERE id = ?1", params![id])
+    }
+
+    /// Hard-deletes a Project, cascading to delete all its tasks.
+    pub fn delete_project(&self, id: &str) -> SqlResult<usize> {
+        self.conn.execute("DELETE FROM projects WHERE id = ?1", params![id])
     }
 
     /// Recovers a trashed Project, making it visible again in its previous view.
