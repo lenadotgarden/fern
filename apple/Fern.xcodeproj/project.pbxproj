@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		72DA723F29D4B746CD3F3C8C /* FernOutlineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68DE8B1ACC0151E1F2E75F83 /* FernOutlineView.swift */; };
-		E73B6B18C41302CD69BE2A33 /* OutlineItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B716987659F85307A53AF2 /* OutlineItem.swift */; };
+		1ADE7684C194AEB621ADA7A1 /* FernOutlineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15EAD768B6E06FC13FD335E5 /* FernOutlineView.swift */; };
+		5F24E2EA1E8DAED13B548DF3 /* OutlineItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53516F87E6B0874C0106A475 /* OutlineItem.swift */; };
 		FA40336B2FE6169A00287A3B /* MainContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA40336A2FE6169A00287A3B /* MainContentView.swift */; };
 		FA519DE42FE5EE9800129308 /* FernApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA519DE32FE5EE9800129308 /* FernApp.swift */; };
 		FA6C1C692FE607800072D9F9 /* fern_core.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6C1C682FE607800072D9F9 /* fern_core.swift */; };
@@ -28,8 +28,8 @@
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* Fern.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fern.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		68DE8B1ACC0151E1F2E75F83 /* FernOutlineView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FernOutlineView.swift; path = apple/Shared/Outline/FernOutlineView.swift; sourceTree = "<group>"; };
-		F1B716987659F85307A53AF2 /* OutlineItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = OutlineItem.swift; path = apple/Shared/Outline/OutlineItem.swift; sourceTree = "<group>"; };
+		15EAD768B6E06FC13FD335E5 /* FernOutlineView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FernOutlineView.swift; sourceTree = "<group>"; };
+		53516F87E6B0874C0106A475 /* OutlineItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OutlineItem.swift; sourceTree = "<group>"; };
 		FA40336A2FE6169A00287A3B /* MainContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainContentView.swift; sourceTree = "<group>"; };
 		FA519DE32FE5EE9800129308 /* FernApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FernApp.swift; sourceTree = "<group>"; };
 		FA6C1C682FE607800072D9F9 /* fern_core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = fern_core.swift; sourceTree = "<group>"; };
@@ -87,10 +87,11 @@
 		1F45CEA27F09E95A2B7CA9B0 /* Outline */ = {
 			isa = PBXGroup;
 			children = (
-				F1B716987659F85307A53AF2 /* OutlineItem.swift */,
-				68DE8B1ACC0151E1F2E75F83 /* FernOutlineView.swift */,
+				53516F87E6B0874C0106A475 /* OutlineItem.swift */,
+				15EAD768B6E06FC13FD335E5 /* FernOutlineView.swift */,
 			);
 			name = Outline;
+			path = Outline;
 			sourceTree = "<group>";
 		};
 		FA519DE02FE5EE6800129308 /* iOS */ = {
@@ -229,8 +230,8 @@
 				FA519DE42FE5EE9800129308 /* FernApp.swift in Sources */,
 				FA40336B2FE6169A00287A3B /* MainContentView.swift in Sources */,
 				FA6C1C692FE607800072D9F9 /* fern_core.swift in Sources */,
-				E73B6B18C41302CD69BE2A33 /* OutlineItem.swift in Sources */,
-				72DA723F29D4B746CD3F3C8C /* FernOutlineView.swift in Sources */,
+				5F24E2EA1E8DAED13B548DF3 /* OutlineItem.swift in Sources */,
+				1ADE7684C194AEB621ADA7A1 /* FernOutlineView.swift in Sources */,
 			);
 		};
 		FA6C1C702FE60AD80072D9F9 /* Sources */ = {
