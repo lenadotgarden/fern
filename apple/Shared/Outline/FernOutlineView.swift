@@ -1,12 +1,15 @@
 import SwiftUI
 import AppKit
 
-struct FernOutlineView: NSViewRepresentable {
+struct FernOutlineView<Content: View>: NSViewRepresentable {
     var items: [OutlineItem]
-    var onSelectionChanged: ((OutlineItem?) -> Void)?
+    @Binding var selectedItemId: String?
+    
+    let content: (OutlineItem) -> Content
     
     // Drag & Drop handlers
     var onMove: ((_ draggedId: String, _ targetId: String?, _ index: Int) -> Void)?
+    var onValidateMove: ((_ draggedId: String, _ targetId: String?, _ index: Int) -> Bool)?
     
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -20,6 +23,19 @@ struct FernOutlineView: NSViewRepresentable {
     
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         context.coordinator.update(items: items)
+        
+        // Sync selection
+        if let id = selectedItemId {
+            if let item = context.coordinator.findItem(by: id),
+               let row = context.coordinator.rowForItem(item) {
+                if nsView.documentView is NSOutlineView {
+                    let outlineView = nsView.documentView as! NSOutlineView
+                    if outlineView.selectedRow != row {
+                        outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                    }
+                }
+            }
+        }
     }
     
     func makeCoordinator() -> Coordinator {
@@ -60,6 +76,20 @@ struct FernOutlineView: NSViewRepresentable {
             outlineView.expandItem(nil, expandChildren: true)
         }
         
+        func findItem(by id: String, in items: [OutlineItem]? = nil) -> OutlineItem? {
+            let searchItems = items ?? rootItems
+            for item in searchItems {
+                if item.id == id { return item }
+                if let found = findItem(by: id, in: item.children) { return found }
+            }
+            return nil
+        }
+        
+        func rowForItem(_ item: OutlineItem) -> Int? {
+            let row = outlineView.row(forItem: item)
+            return row >= 0 ? row : nil
+        }
+        
         // MARK: - NSOutlineViewDataSource
         
         func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
@@ -89,60 +119,42 @@ struct FernOutlineView: NSViewRepresentable {
             guard let outlineItem = item as? OutlineItem else { return nil }
             
             let identifier = NSUserInterfaceItemIdentifier("OutlineCell")
-            var view = outlineView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView
+            var view = outlineView.makeView(withIdentifier: identifier, owner: self) as? NSHostingView<Content>
             
             if view == nil {
-                view = NSTableCellView()
+                view = NSHostingView(rootView: parent.content(outlineItem))
                 view?.identifier = identifier
-                
-                let imageView = NSImageView()
-                imageView.translatesAutoresizingMaskIntoConstraints = false
-                view?.addSubview(imageView)
-                view?.imageView = imageView
-                
-                let textField = NSTextField(labelWithString: "")
-                textField.translatesAutoresizingMaskIntoConstraints = false
-                view?.addSubview(textField)
-                view?.textField = textField
-                
+            } else {
+                view?.rootView = parent.content(outlineItem)
+            }
+            
+            // Layout margins or padding
+            view?.translatesAutoresizingMaskIntoConstraints = false
+            
+            let cellView = NSTableCellView()
+            if let v = view {
+                cellView.addSubview(v)
                 NSLayoutConstraint.activate([
-                    imageView.leadingAnchor.constraint(equalTo: view!.leadingAnchor, constant: 4),
-                    imageView.centerYAnchor.constraint(equalTo: view!.centerYAnchor),
-                    imageView.widthAnchor.constraint(equalToConstant: 16),
-                    imageView.heightAnchor.constraint(equalToConstant: 16),
-                    
-                    textField.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 8),
-                    textField.trailingAnchor.constraint(equalTo: view!.trailingAnchor, constant: -4),
-                    textField.centerYAnchor.constraint(equalTo: view!.centerYAnchor)
+                    v.leadingAnchor.constraint(equalTo: cellView.leadingAnchor),
+                    v.trailingAnchor.constraint(equalTo: cellView.trailingAnchor),
+                    v.topAnchor.constraint(equalTo: cellView.topAnchor),
+                    v.bottomAnchor.constraint(equalTo: cellView.bottomAnchor)
                 ])
             }
             
-            view?.textField?.stringValue = outlineItem.title
-            
-            if let iconName = outlineItem.icon {
-                view?.imageView?.image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
-            } else {
-                view?.imageView?.image = nil
-            }
-            
-            // Adjust styling based on type
-            if case .header = outlineItem.itemType {
-                view?.textField?.font = .systemFont(ofSize: 11, weight: .semibold)
-                view?.textField?.textColor = .secondaryLabelColor
-            } else {
-                view?.textField?.font = .systemFont(ofSize: 13, weight: .regular)
-                view?.textField?.textColor = .labelColor
-            }
-            
-            return view
+            return cellView
         }
         
         func outlineViewSelectionDidChange(_ notification: Notification) {
             let row = outlineView.selectedRow
             if row >= 0, let item = outlineView.item(atRow: row) as? OutlineItem {
-                parent.onSelectionChanged?(item)
+                if parent.selectedItemId != item.id {
+                    parent.selectedItemId = item.id
+                }
             } else {
-                parent.onSelectionChanged?(nil)
+                if parent.selectedItemId != nil {
+                    parent.selectedItemId = nil
+                }
             }
         }
         
@@ -156,7 +168,16 @@ struct FernOutlineView: NSViewRepresentable {
         }
         
         func outlineView(_ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
-            // For now, accept all moves
+            guard let pasteboardString = info.draggingPasteboard.string(forType: .string) else { return [] }
+            let targetItem = item as? OutlineItem
+            
+            if let validate = parent.onValidateMove {
+                if validate(pasteboardString, targetItem?.id, index) {
+                    return .move
+                } else {
+                    return []
+                }
+            }
             return .move
         }
         

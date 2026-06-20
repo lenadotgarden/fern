@@ -13,8 +13,13 @@ struct MainContentView: View {
                 selectedItemId: $selectedItemId,
                 onMove: { draggedId, targetId, index in
                     handleOutlineDrop(draggedId: draggedId, targetId: targetId, index: index)
+                },
+                onValidateMove: { draggedId, targetId, index in
+                    validateOutlineDrop(draggedId: draggedId, targetId: targetId, index: index)
                 }
-            )
+            ) { item in
+                SidebarItemView(item: item)
+            }
             .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 300)
         } detail: {
             detailView(for: selectedItemId)
@@ -58,20 +63,42 @@ struct MainContentView: View {
         return items
     }
     
+    func validateOutlineDrop(draggedId: String, targetId: String?, index: Int) -> Bool {
+        if draggedId.hasPrefix("area:") {
+            // Areas can only be reordered within the Areas header
+            return targetId == "header:areas" && index >= 0
+        } else if draggedId.hasPrefix("project:") {
+            // Projects can be moved to an Area, or to the Projects header, or reordered within them
+            return targetId == "header:projects" || targetId == "header:areas" || (targetId?.hasPrefix("area:") == true && index == -1)
+        }
+        return false
+    }
+    
     func handleOutlineDrop(draggedId: String, targetId: String?, index: Int) {
-        if draggedId.hasPrefix("project:") {
+        if draggedId.hasPrefix("area:") {
+            if targetId == "header:areas" && index >= 0 {
+                let aId = String(draggedId.dropFirst(5))
+                if let sourceIndex = store.activeAreas.firstIndex(where: { $0.id == aId }) {
+                    store.moveArea(from: IndexSet(integer: sourceIndex), to: index)
+                }
+            }
+        } else if draggedId.hasPrefix("project:") {
             let pId = String(draggedId.dropFirst(8))
             if var project = store.allProjects.first(where: { $0.id == pId }) {
                 if let target = targetId {
                     if target.hasPrefix("area:") {
                         project.areaId = String(target.dropFirst(5))
+                        store.updateProject(project: project)
+                    } else if target == "header:areas" {
+                        // Handled by reorder if needed, but for now just prevent weird behavior
                     } else if target.hasPrefix("header:projects") {
                         project.areaId = nil
+                        store.updateProject(project: project)
                     }
                 } else {
                     project.areaId = nil
+                    store.updateProject(project: project)
                 }
-                store.updateProject(project: project)
             }
         }
     }
@@ -102,6 +129,30 @@ struct MainContentView: View {
                 .font(.largeTitle)
                 .foregroundColor(.secondary)
         }
+    }
+}
+
+struct SidebarItemView: View {
+    let item: OutlineItem
+    
+    var isHeader: Bool {
+        if case .header = item.itemType { return true }
+        return false
+    }
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            if let iconName = item.icon {
+                Image(systemName: iconName)
+                    .frame(width: 16, height: 16)
+                    .foregroundColor(isHeader ? .secondary : .accentColor)
+            }
+            Text(item.title)
+                .font(isHeader ? .system(size: 11, weight: .semibold) : .system(size: 13))
+                .foregroundColor(isHeader ? .secondary : .primary)
+            Spacer()
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -168,89 +219,143 @@ struct InboxView: View {
 struct GroupedTasksView: View {
     @EnvironmentObject var store: AppStore
     let tasks: [Task]
+    @State private var selectedItemId: String? = nil
+    
+    func buildItems() -> [OutlineItem] {
+        var items: [OutlineItem] = []
+        
+        // 1. Orphan Tasks
+        let orphanTasks = tasks.filter { $0.projectId == nil && $0.areaId == nil }
+        for task in orphanTasks {
+            items.append(OutlineItem(id: "task:\(task.id)", title: task.title, icon: nil, itemType: .task(task)))
+        }
+        
+        // 2. Areas
+        for area in store.activeAreas {
+            let areaTasks = tasks.filter { $0.areaId == area.id && $0.projectId == nil }
+            let areaProjects = store.activeProjects.filter { $0.areaId == area.id }
+            let projectsWithTasks = areaProjects.filter { p in tasks.contains(where: { $0.projectId == p.id }) }
+            
+            if !areaTasks.isEmpty || !projectsWithTasks.isEmpty {
+                var areaChildren: [OutlineItem] = []
+                for task in areaTasks {
+                    areaChildren.append(OutlineItem(id: "task:\(task.id)", title: task.title, icon: nil, itemType: .task(task)))
+                }
+                for project in projectsWithTasks {
+                    let projectTasks = tasks.filter { $0.projectId == project.id }
+                    var projChildren: [OutlineItem] = []
+                    for task in projectTasks {
+                        projChildren.append(OutlineItem(id: "task:\(task.id)", title: task.title, icon: nil, itemType: .task(task)))
+                    }
+                    areaChildren.append(OutlineItem(id: "project:\(project.id)", title: project.title, icon: "circle.circle", itemType: .project(project), children: projChildren))
+                }
+                items.append(OutlineItem(id: "area:\(area.id)", title: area.title, icon: "square.grid.2x2", itemType: .area(area), children: areaChildren))
+            }
+        }
+        
+        // 3. Orphan Projects
+        let orphanProjects = store.activeProjects.filter { $0.areaId == nil }
+        let orphanProjectsWithTasks = orphanProjects.filter { p in tasks.contains(where: { $0.projectId == p.id }) }
+        
+        if !orphanProjectsWithTasks.isEmpty {
+            let projectsHeader = OutlineItem(id: "header:orphan_projects", title: "Projects", icon: nil, itemType: .header("Projects"))
+            var projItems: [OutlineItem] = []
+            for project in orphanProjectsWithTasks {
+                let projectTasks = tasks.filter { $0.projectId == project.id }
+                var projChildren: [OutlineItem] = []
+                for task in projectTasks {
+                    projChildren.append(OutlineItem(id: "task:\(task.id)", title: task.title, icon: nil, itemType: .task(task)))
+                }
+                projItems.append(OutlineItem(id: "project:\(project.id)", title: project.title, icon: "circle.circle", itemType: .project(project), children: projChildren))
+            }
+            projectsHeader.children = projItems
+            items.append(projectsHeader)
+        }
+        
+        return items
+    }
     
     var body: some View {
-        List {
-            // 1. Orphan Tasks (No Project, No Area)
-            let orphanTasks = tasks.filter { $0.projectId == nil && $0.areaId == nil }
-            if !orphanTasks.isEmpty {
-                Section {
-                    ForEach(orphanTasks, id: \.id) { task in
-                        TaskRowView(task: task)
-                    }
-                    .onMove { source, destination in
-                        store.moveTask(from: source, to: destination, tasksContext: orphanTasks)
-                    }
-                }
+        FernOutlineView(
+            items: buildItems(),
+            selectedItemId: $selectedItemId,
+            onMove: { draggedId, targetId, index in
+                handleDrop(draggedId: draggedId, targetId: targetId, index: index)
+            },
+            onValidateMove: { draggedId, targetId, index in
+                validateDrop(draggedId: draggedId, targetId: targetId, index: index)
             }
-            
-            // 2. Areas
-            ForEach(store.activeAreas, id: \.id) { area in
-                let areaTasks = tasks.filter { $0.areaId == area.id && $0.projectId == nil }
-                let areaProjects = store.activeProjects.filter { $0.areaId == area.id }
-                let projectsWithTasks = areaProjects.filter { p in tasks.contains(where: { $0.projectId == p.id }) }
+        ) { item in
+            GroupedItemView(item: item)
+        }
+    }
+    
+    func validateDrop(draggedId: String, targetId: String?, index: Int) -> Bool {
+        if draggedId.hasPrefix("task:") {
+            return true
+        }
+        return false
+    }
+    
+    func handleDrop(draggedId: String, targetId: String?, index: Int) {
+        if draggedId.hasPrefix("task:") {
+            let taskId = String(draggedId.dropFirst(5))
+            if var task = store.allTasks.first(where: { $0.id == taskId }) {
+                if let target = targetId {
+                    if target.hasPrefix("project:") {
+                        task.projectId = String(target.dropFirst(8))
+                        task.areaId = store.allProjects.first(where: { $0.id == task.projectId })?.areaId
+                    } else if target.hasPrefix("area:") {
+                        task.projectId = nil
+                        task.areaId = String(target.dropFirst(5))
+                    } else if target == "header:orphan_projects" {
+                        task.projectId = nil
+                        task.areaId = nil
+                    }
+                } else {
+                    task.projectId = nil
+                    task.areaId = nil
+                }
+                store.updateTask(task: task)
                 
-                if !areaTasks.isEmpty || !projectsWithTasks.isEmpty {
-                    Section(header: Text(area.title).font(.headline).foregroundColor(.primary)) {
-                        if !areaTasks.isEmpty {
-                            ForEach(areaTasks, id: \.id) { task in
-                                TaskRowView(task: task)
-                            }
-                            .onMove { source, destination in
-                                store.moveTask(from: source, to: destination, tasksContext: areaTasks)
-                            }
-                        }
-                        
-                        ForEach(projectsWithTasks, id: \.id) { project in
-                            let projectTasks = tasks.filter { $0.projectId == project.id }
-                            
-                            HStack {
-                                Image(systemName: "circle.circle")
-                                Text(project.title).font(.subheadline).fontWeight(.semibold)
-                            }
-                            .foregroundColor(.secondary)
-                            .padding(.top, 8)
-                            .padding(.bottom, 2)
-                            
-                            ForEach(projectTasks, id: \.id) { task in
-                                TaskRowView(task: task)
-                            }
-                            .onMove { source, destination in
-                                store.moveTask(from: source, to: destination, tasksContext: projectTasks)
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // 3. Orphan Projects
-            let orphanProjects = store.activeProjects.filter { $0.areaId == nil }
-            let orphanProjectsWithTasks = orphanProjects.filter { p in tasks.contains(where: { $0.projectId == p.id }) }
-            
-            if !orphanProjectsWithTasks.isEmpty {
-                Section(header: Text("Projects").font(.headline).foregroundColor(.primary)) {
-                    ForEach(orphanProjectsWithTasks, id: \.id) { project in
-                        let projectTasks = tasks.filter { $0.projectId == project.id }
-                        
-                        HStack {
-                            Image(systemName: "circle.circle")
-                            Text(project.title).font(.subheadline).fontWeight(.semibold)
-                        }
-                        .foregroundColor(.secondary)
-                        .padding(.top, 8)
-                        .padding(.bottom, 2)
-                        
-                        ForEach(projectTasks, id: \.id) { task in
-                            TaskRowView(task: task)
-                        }
-                        .onMove { source, destination in
-                            store.moveTask(from: source, to: destination, tasksContext: projectTasks)
-                        }
+                if index >= 0 {
+                    let siblings = tasks.filter { $0.projectId == task.projectId && $0.areaId == task.areaId }
+                    if let sourceIndex = siblings.firstIndex(where: { $0.id == taskId }) {
+                        store.moveTask(from: IndexSet(integer: sourceIndex), to: index, tasksContext: siblings)
                     }
                 }
             }
         }
-        .listStyle(.plain)
+    }
+}
+
+struct GroupedItemView: View {
+    let item: OutlineItem
+    @EnvironmentObject var store: AppStore
+    
+    var isHeader: Bool {
+        if case .header = item.itemType { return true }
+        return false
+    }
+    
+    var body: some View {
+        if case .task(let task) = item.itemType {
+            TaskRowView(task: task, showContext: false)
+                .padding(.vertical, 2)
+        } else {
+            HStack(spacing: 8) {
+                if let iconName = item.icon {
+                    Image(systemName: iconName)
+                        .frame(width: 16, height: 16)
+                        .foregroundColor(isHeader ? .secondary : .accentColor)
+                }
+                Text(item.title)
+                    .font(isHeader ? .system(size: 11, weight: .semibold) : .system(size: 13, weight: .semibold))
+                    .foregroundColor(isHeader ? .secondary : .primary)
+                Spacer()
+            }
+            .padding(.vertical, 4)
+        }
     }
 }
 
