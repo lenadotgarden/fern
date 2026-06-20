@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject var store: AppStore
@@ -17,6 +18,38 @@ struct ContentView: View {
     }
 }
 
+func handleDrop(providers: [NSItemProvider], areaId: String?, projectId: String?, store: AppStore) -> Bool {
+    guard let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) }) else { return false }
+    
+    provider.loadDataRepresentation(forTypeIdentifier: UTType.plainText.identifier) { data, _ in
+        guard let data = data, let string = String(data: data, encoding: .utf8) else { return }
+        
+        DispatchQueue.main.async {
+            if string.hasPrefix("task:") {
+                let taskId = String(string.dropFirst(5))
+                if var task = store.allTasks.first(where: { $0.id == taskId }) {
+                    task.areaId = areaId
+                    task.projectId = projectId
+                    if projectId != nil && areaId == nil {
+                        task.areaId = store.allProjects.first(where: { $0.id == projectId })?.areaId
+                    }
+                    store.updateTask(task: task)
+                }
+            } else if string.hasPrefix("project:") {
+                let pId = String(string.dropFirst(8))
+                if var project = store.allProjects.first(where: { $0.id == pId }) {
+                    // Drop project into area or inbox
+                    if projectId == nil {
+                        project.areaId = areaId
+                        store.updateProject(project: project)
+                    }
+                }
+            }
+        }
+    }
+    return true
+}
+
 struct SidebarView: View {
     @EnvironmentObject var store: AppStore
     
@@ -26,6 +59,9 @@ struct SidebarView: View {
                 NavigationLink(destination: InboxView()) {
                     Label("Inbox", systemImage: "tray")
                         .badge(store.inboxTasks.count)
+                }
+                .onDrop(of: [.plainText], isTargeted: nil) { providers in
+                    return handleDrop(providers: providers, areaId: nil, projectId: nil, store: store)
                 }
                 NavigationLink(destination: TodayView()) {
                     Label("Today", systemImage: "star")
@@ -53,11 +89,18 @@ struct SidebarView: View {
                     NavigationLink(destination: AreaDetailView(area: area)) {
                         Label(area.title, systemImage: "square.grid.2x2")
                     }
+                    .onDrop(of: [.plainText], isTargeted: nil) { providers in
+                        return handleDrop(providers: providers, areaId: area.id, projectId: nil, store: store)
+                    }
                     
                     let areaProjects = store.activeProjects.filter { $0.areaId == area.id }
                     ForEach(areaProjects, id: \.id) { project in
                         NavigationLink(destination: ProjectDetailView(project: project)) {
                             Label(project.title, systemImage: "circle.circle")
+                        }
+                        .onDrag { NSItemProvider(object: "project:\(project.id)" as NSString) }
+                        .onDrop(of: [.plainText], isTargeted: nil) { providers in
+                            return handleDrop(providers: providers, areaId: area.id, projectId: project.id, store: store)
                         }
                     }
                 }
@@ -69,6 +112,10 @@ struct SidebarView: View {
                     ForEach(orphanProjects, id: \.id) { project in
                         NavigationLink(destination: ProjectDetailView(project: project)) {
                             Label(project.title, systemImage: "circle.circle")
+                        }
+                        .onDrag { NSItemProvider(object: "project:\(project.id)" as NSString) }
+                        .onDrop(of: [.plainText], isTargeted: nil) { providers in
+                            return handleDrop(providers: providers, areaId: nil, projectId: project.id, store: store)
                         }
                     }
                 }
@@ -234,7 +281,16 @@ struct TaskRowView: View {
         .sheet(isPresented: $showingDetail) {
             TaskDetailView(task: task)
         }
+        .onDrag {
+            NSItemProvider(object: "task:\(task.id)" as NSString)
+        }
     }
+}
+
+enum TaskDestination: Hashable {
+    case inbox
+    case area(String)
+    case project(String)
 }
 
 struct TaskDetailView: View {
@@ -247,8 +303,7 @@ struct TaskDetailView: View {
     @State private var hasScheduledDate: Bool
     @State private var hasScheduledTime: Bool
     @State private var scheduledDate: Date
-    @State private var selectedProjectId: String?
-    @State private var selectedAreaId: String?
+    @State private var destination: TaskDestination
     
     var task: Task
     
@@ -256,8 +311,14 @@ struct TaskDetailView: View {
         self.task = task
         _title = State(initialValue: task.title)
         _notes = State(initialValue: task.notes)
-        _selectedProjectId = State(initialValue: task.projectId)
-        _selectedAreaId = State(initialValue: task.areaId)
+        
+        if let pId = task.projectId {
+            _destination = State(initialValue: .project(pId))
+        } else if let aId = task.areaId {
+            _destination = State(initialValue: .area(aId))
+        } else {
+            _destination = State(initialValue: .inbox)
+        }
         
         let df = DateFormatter()
         df.dateFormat = "yyyy-MM-dd"
@@ -296,16 +357,25 @@ struct TaskDetailView: View {
                 }
                 
                 Section("Organisation") {
-                    Picker("Area", selection: $selectedAreaId) {
-                        Text("None").tag(String?.none)
-                        ForEach(store.activeAreas, id: \.id) { area in
-                            Text(area.title).tag(String?(area.id))
+                    Picker("Destination", selection: $destination) {
+                        Text("Inbox").tag(TaskDestination.inbox)
+                        
+                        let orphans = store.activeProjects.filter { $0.areaId == nil }
+                        if !orphans.isEmpty {
+                            Divider()
+                            ForEach(orphans, id: \.id) { project in
+                                Text("Project: \(project.title)").tag(TaskDestination.project(project.id))
+                            }
                         }
-                    }
-                    Picker("Project", selection: $selectedProjectId) {
-                        Text("None").tag(String?.none)
-                        ForEach(store.activeProjects, id: \.id) { project in
-                            Text(project.title).tag(String?(project.id))
+                        
+                        ForEach(store.activeAreas, id: \.id) { area in
+                            Divider()
+                            Text("Area: \(area.title)").tag(TaskDestination.area(area.id))
+                            
+                            let areaProjects = store.activeProjects.filter { $0.areaId == area.id }
+                            ForEach(areaProjects, id: \.id) { project in
+                                Text("   ↳ \(project.title)").tag(TaskDestination.project(project.id))
+                            }
                         }
                     }
                 }
@@ -338,8 +408,19 @@ struct TaskDetailView: View {
                         var updated = task
                         updated.title = title
                         updated.notes = notes
-                        updated.projectId = selectedProjectId
-                        updated.areaId = selectedAreaId
+                        
+                        switch destination {
+                        case .inbox:
+                            updated.projectId = nil
+                            updated.areaId = nil
+                        case .area(let aId):
+                            updated.projectId = nil
+                            updated.areaId = aId
+                        case .project(let pId):
+                            updated.projectId = pId
+                            updated.areaId = store.activeProjects.first(where: { $0.id == pId })?.areaId
+                        }
+                        
                         if hasScheduledDate {
                             updated.scheduledDate = .on(
                                 date: df.string(from: scheduledDate),
