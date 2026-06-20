@@ -294,8 +294,12 @@ struct TaskDetailView: View {
                     Toggle("Schedule Task", isOn: $hasScheduledDate)
                     if hasScheduledDate {
                         Toggle("Set Specific Time", isOn: $hasScheduledTime)
-                        DatePicker("Date", selection: $scheduledDate, displayedComponents: hasScheduledTime ? [.date, .hourAndMinute] : .date)
-                            .datePickerStyle(.graphical)
+                        if hasScheduledTime {
+                            DatePicker("Date & Time", selection: $scheduledDate, displayedComponents: [.date, .hourAndMinute])
+                        } else {
+                            DatePicker("Date", selection: $scheduledDate, displayedComponents: .date)
+                                .datePickerStyle(.graphical)
+                        }
                     }
                 }
             }
@@ -345,6 +349,7 @@ struct ProjectDetailView: View {
     @EnvironmentObject var store: AppStore
     var project: Project
     @State private var title: String
+    @State private var selectedAreaId: String?
     
     var projectTasks: [Task] {
         store.allTasks.filter { $0.projectId == project.id && !$0.isTrashed }
@@ -353,16 +358,28 @@ struct ProjectDetailView: View {
     init(project: Project) {
         self.project = project
         _title = State(initialValue: project.title)
+        _selectedAreaId = State(initialValue: project.areaId)
     }
     
     var body: some View {
         Form {
-            Section("Project Title") {
+            Section("Project Details") {
                 TextField("Title", text: $title, onCommit: {
                     var updated = project
                     updated.title = title
                     store.updateProject(project: updated)
                 })
+                Picker("Area", selection: $selectedAreaId) {
+                    Text("None").tag(String?.none)
+                    ForEach(store.activeAreas, id: \.id) { area in
+                        Text(area.title).tag(String?(area.id))
+                    }
+                }
+                .onChange(of: selectedAreaId) { newAreaId in
+                    var updated = project
+                    updated.areaId = newAreaId
+                    store.updateProject(project: updated)
+                }
             }
             Section("Tasks") {
                 ForEach(projectTasks, id: \.id) { task in
