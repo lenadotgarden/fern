@@ -58,7 +58,8 @@ class AppStore: ObservableObject {
             estimatedTime: nil,
             spentTime: nil,
             status: .todo,
-            isTrashed: false
+            isTrashed: false,
+            position: 0.0
         )
         do {
             try api.createTask(task: task)

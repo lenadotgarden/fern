@@ -587,7 +587,7 @@ struct ProjectDetailView: View {
                     }
                     
                     Button(action: {
-                        let task = Task(id: UUID().uuidString, projectId: project.id, areaId: project.areaId, title: "New Task", notes: "", scheduledDate: nil, deadline: nil, estimatedTime: nil, spentTime: nil, status: .todo, isTrashed: false)
+                        let task = Task(id: UUID().uuidString, projectId: project.id, areaId: project.areaId, title: "New Task", notes: "", scheduledDate: nil, deadline: nil, estimatedTime: nil, spentTime: nil, status: .todo, isTrashed: false, position: 0.0)
                         do { try store.api.createTask(task: task); store.loadAllData() } catch {}
                     }) {
                         HStack {
@@ -699,7 +699,7 @@ struct AreaDetailView: View {
                         }
                         
                         Button(action: {
-                            let task = Task(id: UUID().uuidString, projectId: nil, areaId: area.id, title: "New Task", notes: "", scheduledDate: nil, deadline: nil, estimatedTime: nil, spentTime: nil, status: .todo, isTrashed: false)
+                            let task = Task(id: UUID().uuidString, projectId: nil, areaId: area.id, title: "New Task", notes: "", scheduledDate: nil, deadline: nil, estimatedTime: nil, spentTime: nil, status: .todo, isTrashed: false, position: 0.0)
                             do { try store.api.createTask(task: task); store.loadAllData() } catch {}
                         }) {
                             HStack {
