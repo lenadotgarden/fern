@@ -27,19 +27,23 @@ struct SidebarView: View {
                     Label("Inbox", systemImage: "tray")
                         .badge(store.inboxTasks.count)
                 }
-                NavigationLink(destination: Text("Today View")) {
+                NavigationLink(destination: TodayView()) {
                     Label("Today", systemImage: "star")
+                        .badge(store.todayTasks.count)
                 }
-                NavigationLink(destination: Text("Upcoming View")) {
+                NavigationLink(destination: UpcomingView()) {
                     Label("Upcoming", systemImage: "calendar")
+                        .badge(store.upcomingTasks.count)
                 }
-                NavigationLink(destination: Text("Anytime View")) {
+                NavigationLink(destination: AnytimeView()) {
                     Label("Anytime", systemImage: "tray.2")
+                        .badge(store.anytimeTasks.count)
                 }
-                NavigationLink(destination: Text("Someday View")) {
+                NavigationLink(destination: SomedayView()) {
                     Label("Someday", systemImage: "archivebox")
+                        .badge(store.somedayTasks.count)
                 }
-                NavigationLink(destination: Text("Logbook View")) {
+                NavigationLink(destination: LogbookView()) {
                     Label("Logbook", systemImage: "book.closed")
                 }
             }
@@ -68,38 +72,87 @@ struct InboxView: View {
         .navigationTitle("Inbox")
         .toolbar {
             ToolbarItem {
-                Button(action: {
-                    showingCreateTask = true
-                }) {
+                Button(action: { showingCreateTask = true }) {
                     Label("Add Task", systemImage: "plus")
                 }
             }
         }
         .sheet(isPresented: $showingCreateTask) {
-            NavigationStack {
-                Form {
-                    TextField("What do you want to do?", text: $newTaskTitle)
+            CreateTaskSheet(isPresented: $showingCreateTask)
+        }
+    }
+}
+
+struct TodayView: View {
+    @EnvironmentObject var store: AppStore
+    var body: some View {
+        List(store.todayTasks, id: \.id) { task in TaskRowView(task: task) }
+        .navigationTitle("Today")
+        .overlay { if store.todayTasks.isEmpty { Text("Nothing for today!").foregroundColor(.secondary) } }
+    }
+}
+
+struct UpcomingView: View {
+    @EnvironmentObject var store: AppStore
+    var body: some View {
+        List(store.upcomingTasks, id: \.id) { task in TaskRowView(task: task) }
+        .navigationTitle("Upcoming")
+        .overlay { if store.upcomingTasks.isEmpty { Text("No upcoming tasks.").foregroundColor(.secondary) } }
+    }
+}
+
+struct AnytimeView: View {
+    @EnvironmentObject var store: AppStore
+    var body: some View {
+        List(store.anytimeTasks, id: \.id) { task in TaskRowView(task: task) }
+        .navigationTitle("Anytime")
+        .overlay { if store.anytimeTasks.isEmpty { Text("No anytime tasks.").foregroundColor(.secondary) } }
+    }
+}
+
+struct SomedayView: View {
+    @EnvironmentObject var store: AppStore
+    var body: some View {
+        List(store.somedayTasks, id: \.id) { task in TaskRowView(task: task) }
+        .navigationTitle("Someday")
+        .overlay { if store.somedayTasks.isEmpty { Text("No someday tasks.").foregroundColor(.secondary) } }
+    }
+}
+
+struct LogbookView: View {
+    @EnvironmentObject var store: AppStore
+    var body: some View {
+        List(store.logbookTasks, id: \.id) { task in TaskRowView(task: task) }
+        .navigationTitle("Logbook")
+        .overlay { if store.logbookTasks.isEmpty { Text("Logbook is empty.").foregroundColor(.secondary) } }
+    }
+}
+
+struct CreateTaskSheet: View {
+    @EnvironmentObject var store: AppStore
+    @Binding var isPresented: Bool
+    @State private var newTaskTitle = ""
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("What do you want to do?", text: $newTaskTitle)
+            }
+            .navigationTitle("New Task")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { isPresented = false }
                 }
-                .navigationTitle("New Task")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            showingCreateTask = false
-                            newTaskTitle = ""
-                        }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        store.addTask(title: newTaskTitle)
+                        isPresented = false
                     }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            store.addTask(title: newTaskTitle)
-                            showingCreateTask = false
-                            newTaskTitle = ""
-                        }
-                        .disabled(newTaskTitle.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
+                    .disabled(newTaskTitle.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
-            .presentationDetents([.medium])
         }
+        .presentationDetents([.medium])
     }
 }
 
