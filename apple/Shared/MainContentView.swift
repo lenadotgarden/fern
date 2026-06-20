@@ -412,7 +412,6 @@ struct TaskRowView: View {
         .sheet(isPresented: $showingDetail) {
             TaskDetailView(task: task)
         }
-        .draggable("task:\(task.id)")
         .contextMenu {
             if task.isTrashed {
                 Button(action: {
