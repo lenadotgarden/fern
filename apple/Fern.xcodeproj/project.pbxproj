@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FA40336B2FE6169A00287A3B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA40336A2FE6169A00287A3B /* ContentView.swift */; };
+		FA40336B2FE6169A00287A3B /* MainContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA40336A2FE6169A00287A3B /* MainContentView.swift */; };
 		FA519DE42FE5EE9800129308 /* FernApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA519DE32FE5EE9800129308 /* FernApp.swift */; };
 		FA6C1C692FE607800072D9F9 /* fern_core.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6C1C682FE607800072D9F9 /* fern_core.swift */; };
 		FA6C1C6F2FE609720072D9F9 /* FernCore.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA6C1C6E2FE609720072D9F9 /* FernCore.xcframework */; };
@@ -26,7 +26,7 @@
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* Fern.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fern.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		FA40336A2FE6169A00287A3B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		FA40336A2FE6169A00287A3B /* MainContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainContentView.swift; sourceTree = "<group>"; };
 		FA519DE32FE5EE9800129308 /* FernApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FernApp.swift; sourceTree = "<group>"; };
 		FA6C1C682FE607800072D9F9 /* fern_core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = fern_core.swift; sourceTree = "<group>"; };
 		FA6C1C6E2FE609720072D9F9 /* FernCore.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = FernCore.xcframework; sourceTree = "<group>"; };
@@ -95,7 +95,7 @@
 		FA519DE22FE5EE6800129308 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
-				FA40336A2FE6169A00287A3B /* ContentView.swift */,
+				FA40336A2FE6169A00287A3B /* MainContentView.swift */,
 				FA6C1C7F2FE60C850072D9F9 /* AppStore.swift */,
 				FA6C1C682FE607800072D9F9 /* fern_core.swift */,
 				FA519DE32FE5EE9800129308 /* FernApp.swift */,
@@ -209,7 +209,7 @@
 			files = (
 				FA6C1C802FE60C850072D9F9 /* AppStore.swift in Sources */,
 				FA519DE42FE5EE9800129308 /* FernApp.swift in Sources */,
-				FA40336B2FE6169A00287A3B /* ContentView.swift in Sources */,
+				FA40336B2FE6169A00287A3B /* MainContentView.swift in Sources */,
 				FA6C1C692FE607800072D9F9 /* fern_core.swift in Sources */,
 			);
 		};

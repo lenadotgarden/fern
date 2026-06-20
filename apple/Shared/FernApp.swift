@@ -24,7 +24,7 @@ struct FernApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainContentView()
                 .environmentObject(store)
         }
     }
