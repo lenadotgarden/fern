@@ -349,7 +349,11 @@ impl Database {
         rows
     }
 
-    pub fn update_tasks_area_for_project(&self, project_id: &str, area_id: Option<&String>) -> SqlResult<usize> {
+    pub fn update_tasks_area_for_project(
+        &self,
+        project_id: &str,
+        area_id: Option<&String>,
+    ) -> SqlResult<usize> {
         self.conn.execute(
             "UPDATE tasks SET area_id = ?1 WHERE project_id = ?2",
             params![area_id, project_id],

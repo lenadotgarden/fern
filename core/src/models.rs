@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
+use crate::UniffiCustomTypeConverter;
 use chrono::{NaiveDate, NaiveTime};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::UniffiCustomTypeConverter;
 
 // Tell uniFFI how to handle NaiveDate and NaiveTime by passing them as Strings over the FFI boundary.
 uniffi::custom_type!(NaiveDate, String);
