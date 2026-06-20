@@ -4,17 +4,103 @@ import UniformTypeIdentifiers
 
 struct MainContentView: View {
     @EnvironmentObject var store: AppStore
+    @State private var selectedItemId: String? = "view:today"
     
     var body: some View {
         NavigationSplitView {
-            SidebarView()
+            FernOutlineView(
+                items: buildSidebarItems(),
+                selectedItemId: $selectedItemId,
+                onMove: { draggedId, targetId, index in
+                    handleOutlineDrop(draggedId: draggedId, targetId: targetId, index: index)
+                }
+            )
+            .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 300)
         } detail: {
-            Text("Select an item in the sidebar")
-                .font(.largeTitle)
-                .foregroundColor(.secondary)
+            detailView(for: selectedItemId)
         }
         .onAppear {
             store.loadAllData()
+        }
+    }
+    
+    func buildSidebarItems() -> [OutlineItem] {
+        var items: [OutlineItem] = []
+        
+        let fernHeader = OutlineItem(id: "header:fern", title: "Fern", icon: nil, itemType: .header("Fern"), children: [
+            OutlineItem(id: "view:inbox", title: "Inbox", icon: "tray", itemType: .inbox),
+            OutlineItem(id: "view:today", title: "Today", icon: "star", itemType: .today),
+            OutlineItem(id: "view:upcoming", title: "Upcoming", icon: "calendar", itemType: .upcoming),
+            OutlineItem(id: "view:anytime", title: "Anytime", icon: "tray.2", itemType: .anytime),
+            OutlineItem(id: "view:someday", title: "Someday", icon: "archivebox", itemType: .someday),
+            OutlineItem(id: "view:logbook", title: "Logbook", icon: "book.closed", itemType: .logbook),
+            OutlineItem(id: "view:trash", title: "Trash", icon: "trash", itemType: .trash)
+        ])
+        items.append(fernHeader)
+        
+        let areasHeader = OutlineItem(id: "header:areas", title: "Areas", icon: nil, itemType: .header("Areas"), children: store.activeAreas.map { area in
+            let areaProjects = store.activeProjects.filter { $0.areaId == area.id }
+            let projectItems = areaProjects.map { project in
+                OutlineItem(id: "project:\(project.id)", title: project.title, icon: "circle.circle", itemType: .project(project))
+            }
+            return OutlineItem(id: "area:\(area.id)", title: area.title, icon: "square.grid.2x2", itemType: .area(area), children: projectItems)
+        })
+        items.append(areasHeader)
+        
+        let orphanProjects = store.activeProjects.filter { $0.areaId == nil }
+        if !orphanProjects.isEmpty {
+            let projectsHeader = OutlineItem(id: "header:projects", title: "Projects", icon: nil, itemType: .header("Projects"), children: orphanProjects.map { project in
+                OutlineItem(id: "project:\(project.id)", title: project.title, icon: "circle.circle", itemType: .project(project))
+            })
+            items.append(projectsHeader)
+        }
+        
+        return items
+    }
+    
+    func handleOutlineDrop(draggedId: String, targetId: String?, index: Int) {
+        if draggedId.hasPrefix("project:") {
+            let pId = String(draggedId.dropFirst(8))
+            if var project = store.allProjects.first(where: { $0.id == pId }) {
+                if let target = targetId {
+                    if target.hasPrefix("area:") {
+                        project.areaId = String(target.dropFirst(5))
+                    } else if target.hasPrefix("header:projects") {
+                        project.areaId = nil
+                    }
+                } else {
+                    project.areaId = nil
+                }
+                store.updateProject(project: project)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    func detailView(for id: String?) -> some View {
+        if let id = id {
+            if id == "view:inbox" { InboxView() }
+            else if id == "view:today" { TodayView() }
+            else if id == "view:upcoming" { UpcomingView() }
+            else if id == "view:anytime" { AnytimeView() }
+            else if id == "view:someday" { SomedayView() }
+            else if id == "view:logbook" { LogbookView() }
+            else if id == "view:trash" { TrashView() }
+            else if id.hasPrefix("area:") {
+                if let area = store.activeAreas.first(where: { $0.id == String(id.dropFirst(5)) }) {
+                    AreaDetailView(area: area)
+                } else { Text("Area not found").foregroundColor(.secondary) }
+            }
+            else if id.hasPrefix("project:") {
+                if let project = store.activeProjects.first(where: { $0.id == String(id.dropFirst(8)) }) {
+                    ProjectDetailView(project: project)
+                } else { Text("Project not found").foregroundColor(.secondary) }
+            }
+            else { Text("Select an item").font(.largeTitle).foregroundColor(.secondary) }
+        } else {
+            Text("Select an item in the sidebar")
+                .font(.largeTitle)
+                .foregroundColor(.secondary)
         }
     }
 }
@@ -45,125 +131,6 @@ func handleDropStrings(_ items: [String], areaId: String?, projectId: String?, s
     return handled
 }
 
-struct SidebarView: View {
-    @EnvironmentObject var store: AppStore
-    
-    var body: some View {
-        List {
-            Section("Fern") {
-                NavigationLink(destination: InboxView()) {
-                    Label("Inbox", systemImage: "tray")
-                        .badge(store.inboxTasks.count)
-                }
-                .dropDestination(for: String.self) { items, _ in
-                    return handleDropStrings(items, areaId: nil, projectId: nil, store: store)
-                }
-                NavigationLink(destination: TodayView()) {
-                    Label("Today", systemImage: "star")
-                        .badge(store.todayTasks.count)
-                }
-                NavigationLink(destination: UpcomingView()) {
-                    Label("Upcoming", systemImage: "calendar")
-                        .badge(store.upcomingTasks.count)
-                }
-                NavigationLink(destination: AnytimeView()) {
-                    Label("Anytime", systemImage: "tray.2")
-                        .badge(store.anytimeTasks.count)
-                }
-                NavigationLink(destination: SomedayView()) {
-                    Label("Someday", systemImage: "archivebox")
-                        .badge(store.somedayTasks.count)
-                }
-                NavigationLink(destination: LogbookView()) {
-                    Label("Logbook", systemImage: "book.closed")
-                }
-                NavigationLink(destination: TrashView()) {
-                    Label("Trash", systemImage: "trash")
-                }
-            }
-            
-            ForEach(store.activeAreas, id: \.id) { area in
-                Section(header: Text(area.title).font(.caption).fontWeight(.semibold)) {
-                    NavigationLink(destination: AreaDetailView(area: area).id(area.id)) {
-                        Label(area.title, systemImage: "square.grid.2x2")
-                    }
-                    .dropDestination(for: String.self) { items, _ in
-                        return handleDropStrings(items, areaId: area.id, projectId: nil, store: store)
-                    }
-                    .contextMenu {
-                        Button(role: .destructive, action: {
-                            store.deleteArea(id: area.id)
-                        }) {
-                            Label("Delete Area", systemImage: "trash")
-                        }
-                    }
-                    
-                    let areaProjects = store.activeProjects.filter { $0.areaId == area.id }
-                    ForEach(areaProjects, id: \.id) { project in
-                        NavigationLink(destination: ProjectDetailView(project: project).id(project.id)) {
-                            Label(project.title, systemImage: "circle.circle")
-                        }
-                        .draggable(String("project:\(project.id)"))
-                        .dropDestination(for: String.self) { items, _ in
-                            return handleDropStrings(items, areaId: area.id, projectId: project.id, store: store)
-                        }
-                        .contextMenu {
-                            Button(role: .destructive, action: {
-                                store.deleteProject(id: project.id)
-                            }) {
-                                Label("Delete Project", systemImage: "trash")
-                            }
-                        }
-                    }
-                    .onMove { source, destination in
-                        store.moveProject(from: source, to: destination, in: area.id)
-                    }
-                }
-            }
-            .onMove { source, destination in
-                store.moveArea(from: source, to: destination)
-            }
-            
-            let orphanProjects = store.activeProjects.filter { $0.areaId == nil }
-            if !orphanProjects.isEmpty {
-                Section("Projects") {
-                    ForEach(orphanProjects, id: \.id) { project in
-                        NavigationLink(destination: ProjectDetailView(project: project).id(project.id)) {
-                            Label(project.title, systemImage: "circle.circle")
-                        }
-                        .draggable(String("project:\(project.id)"))
-                        .dropDestination(for: String.self) { items, _ in
-                            return handleDropStrings(items, areaId: nil, projectId: project.id, store: store)
-                        }
-                        .contextMenu {
-                            Button(role: .destructive, action: {
-                                store.deleteProject(id: project.id)
-                            }) {
-                                Label("Delete Project", systemImage: "trash")
-                            }
-                        }
-                    }
-                    .onMove { source, destination in
-                        store.moveProject(from: source, to: destination, in: nil)
-                    }
-                }
-            }
-            
-            Section {
-                Button(action: { store.addArea(title: "New Area") }) {
-                    Label("Add Area", systemImage: "plus.square.dashed")
-                }
-                .buttonStyle(PlainButtonStyle())
-                Button(action: { store.addProject(title: "New Project") }) {
-                    Label("Add Project", systemImage: "plus.circle.dashed")
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-        }
-        .listStyle(.sidebar)
-        .navigationTitle("Fern")
-    }
-}
 
 struct InboxView: View {
     @EnvironmentObject var store: AppStore
