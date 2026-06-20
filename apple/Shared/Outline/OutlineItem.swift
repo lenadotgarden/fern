@@ -1,5 +1,5 @@
 import SwiftUI
-import AppKit
+import Foundation
 
 enum OutlineItemType: Equatable {
     case inbox, today, upcoming, anytime, someday, logbook, trash

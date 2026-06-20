@@ -1,4 +1,5 @@
 import SwiftUI
+#if os(macOS)
 import AppKit
 
 struct FernOutlineView<Content: View>: NSViewRepresentable {
@@ -190,3 +191,30 @@ struct FernOutlineView<Content: View>: NSViewRepresentable {
         }
     }
 }
+#else
+struct FernOutlineView<Content: View>: View {
+    var items: [OutlineItem]
+    @Binding var selectedItemId: String?
+    
+    // Drag & Drop handlers (unused on iOS fallback for now)
+    var onMove: ((_ draggedId: String, _ targetId: String?, _ index: Int) -> Void)?
+    var onValidateMove: ((_ draggedId: String, _ targetId: String?, _ index: Int) -> Bool)?
+    
+    @ViewBuilder var content: (OutlineItem) -> Content
+    
+    var body: some View {
+        List {
+            ForEach(items, id: \.id) { item in
+                content(item)
+                if !item.children.isEmpty {
+                    ForEach(item.children, id: \.id) { child in
+                        content(child)
+                            .padding(.leading, 16)
+                    }
+                }
+            }
+        }
+        .listStyle(.plain)
+    }
+}
+#endif
