@@ -5,6 +5,7 @@ import AppKit
 struct FernOutlineView<Content: View>: NSViewRepresentable {
     var items: [OutlineItem]
     @Binding var selectedItemId: String?
+    var isNavigationEnabled: Bool = false
     
     // Drag & Drop handlers
     var onMove: ((_ draggedId: String, _ targetId: String?, _ index: Int) -> Void)?
@@ -195,6 +196,7 @@ struct FernOutlineView<Content: View>: NSViewRepresentable {
 struct FernOutlineView<Content: View>: View {
     var items: [OutlineItem]
     @Binding var selectedItemId: String?
+    var isNavigationEnabled: Bool = false
     
     // Drag & Drop handlers (unused on iOS fallback for now)
     var onMove: ((_ draggedId: String, _ targetId: String?, _ index: Int) -> Void)?
@@ -203,13 +205,29 @@ struct FernOutlineView<Content: View>: View {
     @ViewBuilder var content: (OutlineItem) -> Content
     
     var body: some View {
-        List {
+        List(selection: $selectedItemId) {
             ForEach(items, id: \.id) { item in
-                content(item)
+                if isNavigationEnabled {
+                    NavigationLink(value: item.id) {
+                        content(item)
+                    }
+                } else {
+                    content(item)
+                        .tag(item.id)
+                }
+                    
                 if !item.children.isEmpty {
                     ForEach(item.children, id: \.id) { child in
-                        content(child)
-                            .padding(.leading, 16)
+                        if isNavigationEnabled {
+                            NavigationLink(value: child.id) {
+                                content(child)
+                                    .padding(.leading, 16)
+                            }
+                        } else {
+                            content(child)
+                                .padding(.leading, 16)
+                                .tag(child.id)
+                        }
                     }
                 }
             }

@@ -1,5 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
+#if canImport(UIKit)
+import UIKit
+#endif
 
 
 struct MainContentView: View {
@@ -12,6 +15,7 @@ struct MainContentView: View {
                 FernOutlineView(
                     items: buildSidebarItems(),
                     selectedItemId: $selectedItemId,
+                    isNavigationEnabled: true,
                     onMove: { draggedId, targetId, index in
                         handleOutlineDrop(draggedId: draggedId, targetId: targetId, index: index)
                     },
@@ -38,7 +42,11 @@ struct MainContentView: View {
                     .buttonStyle(PlainButtonStyle())
                 }
                 .padding()
+#if os(macOS)
                 .background(Color(NSColor.controlBackgroundColor))
+#else
+                .background(Color(UIColor.systemBackground))
+#endif
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 300)
         } detail: {
