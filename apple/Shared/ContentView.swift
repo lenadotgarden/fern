@@ -51,6 +51,8 @@ struct SidebarView: View {
 
 struct InboxView: View {
     @EnvironmentObject var store: AppStore
+    @State private var showingCreateTask = false
+    @State private var newTaskTitle = ""
     
     var body: some View {
         List {
@@ -68,6 +70,40 @@ struct InboxView: View {
             }
         }
         .navigationTitle("Inbox")
+        .toolbar {
+            ToolbarItem {
+                Button(action: {
+                    showingCreateTask = true
+                }) {
+                    Label("Add Task", systemImage: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $showingCreateTask) {
+            NavigationStack {
+                Form {
+                    TextField("What do you want to do?", text: $newTaskTitle)
+                }
+                .navigationTitle("New Task")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            showingCreateTask = false
+                            newTaskTitle = ""
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            store.addTask(title: newTaskTitle)
+                            showingCreateTask = false
+                            newTaskTitle = ""
+                        }
+                        .disabled(newTaskTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+        }
     }
 }
 

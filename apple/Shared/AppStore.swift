@@ -25,6 +25,28 @@ class AppStore: ObservableObject {
             print("❌ Failed to load inbox tasks: \(error)")
         }
     }
+    
+    func addTask(title: String, notes: String = "") {
+        let task = Task(
+            id: UUID().uuidString,
+            projectId: nil,
+            areaId: nil,
+            title: title,
+            notes: notes,
+            scheduledDate: nil,
+            deadline: nil,
+            estimatedTime: nil,
+            spentTime: nil,
+            status: .todo,
+            isTrashed: false
+        )
+        do {
+            try api.createTask(task: task)
+            loadInbox() // Rafraîchit l'interface !
+        } catch {
+            print("❌ Failed to create task: \(error)")
+        }
+    }
 }
 
 extension Task {
