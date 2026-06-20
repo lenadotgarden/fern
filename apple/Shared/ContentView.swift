@@ -12,7 +12,7 @@ struct ContentView: View {
                 .foregroundColor(.secondary)
         }
         .onAppear {
-            store.loadInbox()
+            store.loadAllData()
         }
     }
 }
@@ -25,7 +25,7 @@ struct SidebarView: View {
             Section("Views") {
                 NavigationLink(destination: InboxView()) {
                     Label("Inbox", systemImage: "tray")
-                        .badge(store.tasks.count)
+                        .badge(store.inboxTasks.count)
                 }
                 NavigationLink(destination: Text("Today View")) {
                     Label("Today", systemImage: "star")
@@ -56,11 +56,11 @@ struct InboxView: View {
     
     var body: some View {
         List {
-            if store.tasks.isEmpty {
+            if store.inboxTasks.isEmpty {
                 Text("Your Inbox is empty! 🎉")
                     .foregroundColor(.secondary)
             } else {
-                ForEach(store.tasks, id: \.id) { task in
+                ForEach(store.inboxTasks, id: \.id) { task in
                     HStack {
                         Image(systemName: "circle")
                             .foregroundColor(.secondary)

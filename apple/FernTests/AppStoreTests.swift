@@ -11,7 +11,7 @@ final class AppStoreTests: XCTestCase {
         
         // Assert
         XCTAssertNotNil(store.api, "The Rust API must be initialized")
-        XCTAssertTrue(store.tasks.isEmpty, "On a fresh DB, the tasks list should be empty")
+        XCTAssertTrue(store.inboxTasks.isEmpty, "On a fresh DB, the tasks list should be empty")
     }
     
     func testStoreLoadsInboxTasks() throws {
@@ -23,10 +23,10 @@ final class AppStoreTests: XCTestCase {
         try store.api.createTask(task: task)
         
         // Act
-        store.loadInbox()
+        store.loadAllData()
         
         // Assert
-        XCTAssertEqual(store.tasks.count, 1)
-        XCTAssertEqual(store.tasks.first?.title, "Test SwiftUI Task")
+        XCTAssertEqual(store.inboxTasks.count, 1)
+        XCTAssertEqual(store.inboxTasks.first?.title, "Test SwiftUI Task")
     }
 }

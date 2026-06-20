@@ -5,7 +5,12 @@ import Combine
 @MainActor
 class AppStore: ObservableObject {
     let api: FernApi
-    @Published var tasks: [Task] = []
+    @Published var inboxTasks: [Task] = []
+    @Published var todayTasks: [Task] = []
+    @Published var upcomingTasks: [Task] = []
+    @Published var anytimeTasks: [Task] = []
+    @Published var somedayTasks: [Task] = []
+    @Published var logbookTasks: [Task] = []
     
     init(inMemory: Bool = false) throws {
         if inMemory {
@@ -17,12 +22,16 @@ class AppStore: ObservableObject {
         }
     }
     
-    func loadInbox() {
+    func loadAllData() {
         do {
-            let fetchedTasks = try api.getInboxTasks()
-            self.tasks = fetchedTasks
+            self.inboxTasks = try api.getInboxTasks()
+            self.todayTasks = try api.getTodayTasks()
+            self.upcomingTasks = try api.getUpcomingTasks()
+            self.anytimeTasks = try api.getAnytimeTasks()
+            self.somedayTasks = try api.getSomedayTasks()
+            self.logbookTasks = try api.getLogbookTasks()
         } catch {
-            print("❌ Failed to load inbox tasks: \(error)")
+            print("❌ Failed to load tasks: \(error)")
         }
     }
     
@@ -42,7 +51,7 @@ class AppStore: ObservableObject {
         )
         do {
             try api.createTask(task: task)
-            loadInbox() // Rafraîchit l'interface !
+            loadAllData() // Rafraîchit l'interface !
         } catch {
             print("❌ Failed to create task: \(error)")
         }
