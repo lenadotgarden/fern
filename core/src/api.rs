@@ -56,6 +56,17 @@ impl FernAPI {
     pub fn get_active_areas(&self) -> Result<Vec<Area>, FernError> {
         self.db.lock().unwrap().get_active_areas().map_err(|e| FernError::DatabaseError(e.to_string()))
     }
+    
+    // =========================================================================
+    // All Queries API
+    // =========================================================================
+    pub fn get_all_tasks(&self) -> Result<Vec<Task>, FernError> {
+        self.db.lock().unwrap().get_all_tasks().map_err(|e| FernError::DatabaseError(e.to_string()))
+    }
+
+    pub fn get_all_projects(&self) -> Result<Vec<Project>, FernError> {
+        self.db.lock().unwrap().get_all_projects().map_err(|e| FernError::DatabaseError(e.to_string()))
+    }
     pub fn archive_area(&self, id: String) -> Result<(), FernError> {
         self.db.lock().unwrap().archive_area(&id).map_err(|e| FernError::DatabaseError(e.to_string()))?; Ok(())
     }

@@ -15,6 +15,9 @@ class AppStore: ObservableObject {
     @Published var activeAreas: [Area] = []
     @Published var activeProjects: [Project] = []
     
+    @Published var allTasks: [Task] = []
+    @Published var allProjects: [Project] = []
+    
     init(inMemory: Bool = false) throws {
         if inMemory {
             self.api = try FernApi.newInMemory()
@@ -35,6 +38,9 @@ class AppStore: ObservableObject {
             self.logbookTasks = try api.getLogbookTasks()
             self.activeAreas = try api.getActiveAreas()
             self.activeProjects = try api.getAnytimeProjects()
+            
+            self.allTasks = try api.getAllTasks()
+            self.allProjects = try api.getAllProjects()
         } catch {
             print("❌ Failed to load data: \(error)")
         }
@@ -71,10 +77,10 @@ class AppStore: ObservableObject {
         }
     }
     
-    func addProject(title: String) {
+    func addProject(title: String, areaId: String? = nil) {
         let project = Project(
             id: UUID().uuidString,
-            areaId: nil,
+            areaId: areaId,
             title: title,
             notes: "",
             scheduledDate: nil,

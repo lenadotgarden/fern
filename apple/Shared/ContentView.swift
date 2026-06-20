@@ -225,6 +225,7 @@ struct TaskDetailView: View {
     @State private var notes: String
     
     @State private var hasScheduledDate: Bool
+    @State private var hasScheduledTime: Bool
     @State private var scheduledDate: Date
     @State private var selectedProjectId: String?
     @State private var selectedAreaId: String?
@@ -240,11 +241,27 @@ struct TaskDetailView: View {
         
         let df = DateFormatter()
         df.dateFormat = "yyyy-MM-dd"
-        if let sd = task.scheduledDate, case let .on(dateStr, _) = sd, let d = df.date(from: dateStr) {
+        let tf = DateFormatter()
+        tf.dateFormat = "HH:mm:ss"
+        
+        if let sd = task.scheduledDate, case let .on(dateStr, timeStr) = sd, let d = df.date(from: dateStr) {
             _hasScheduledDate = State(initialValue: true)
-            _scheduledDate = State(initialValue: d)
+            if let tStr = timeStr, let t = tf.date(from: tStr) {
+                _hasScheduledTime = State(initialValue: true)
+                let cal = Calendar.current
+                var comps = cal.dateComponents([.year, .month, .day], from: d)
+                let tComps = cal.dateComponents([.hour, .minute, .second], from: t)
+                comps.hour = tComps.hour
+                comps.minute = tComps.minute
+                comps.second = tComps.second
+                _scheduledDate = State(initialValue: cal.date(from: comps) ?? d)
+            } else {
+                _hasScheduledTime = State(initialValue: false)
+                _scheduledDate = State(initialValue: d)
+            }
         } else {
             _hasScheduledDate = State(initialValue: false)
+            _hasScheduledTime = State(initialValue: false)
             _scheduledDate = State(initialValue: Date())
         }
     }
@@ -276,7 +293,8 @@ struct TaskDetailView: View {
                 Section("Scheduling") {
                     Toggle("Schedule Task", isOn: $hasScheduledDate)
                     if hasScheduledDate {
-                        DatePicker("Date", selection: $scheduledDate, displayedComponents: .date)
+                        Toggle("Set Specific Time", isOn: $hasScheduledTime)
+                        DatePicker("Date", selection: $scheduledDate, displayedComponents: hasScheduledTime ? [.date, .hourAndMinute] : .date)
                             .datePickerStyle(.graphical)
                     }
                 }
@@ -290,6 +308,8 @@ struct TaskDetailView: View {
                     Button("Save") {
                         let df = DateFormatter()
                         df.dateFormat = "yyyy-MM-dd"
+                        let tf = DateFormatter()
+                        tf.dateFormat = "HH:mm:ss"
                         
                         var updated = task
                         updated.title = title
@@ -297,7 +317,10 @@ struct TaskDetailView: View {
                         updated.projectId = selectedProjectId
                         updated.areaId = selectedAreaId
                         if hasScheduledDate {
-                            updated.scheduledDate = .on(date: df.string(from: scheduledDate), time: nil)
+                            updated.scheduledDate = .on(
+                                date: df.string(from: scheduledDate),
+                                time: hasScheduledTime ? tf.string(from: scheduledDate) : nil
+                            )
                         } else {
                             updated.scheduledDate = nil
                         }
@@ -323,23 +346,36 @@ struct ProjectDetailView: View {
     var project: Project
     @State private var title: String
     
+    var projectTasks: [Task] {
+        store.allTasks.filter { $0.projectId == project.id && !$0.isTrashed }
+    }
+    
     init(project: Project) {
         self.project = project
         _title = State(initialValue: project.title)
     }
     
     var body: some View {
-        VStack {
-            TextField("Project Title", text: $title, onCommit: {
-                var updated = project
-                updated.title = title
-                store.updateProject(project: updated)
-            })
-            .font(.title)
-            .padding()
-            Spacer()
+        Form {
+            Section("Project Title") {
+                TextField("Title", text: $title, onCommit: {
+                    var updated = project
+                    updated.title = title
+                    store.updateProject(project: updated)
+                })
+            }
+            Section("Tasks") {
+                ForEach(projectTasks, id: \.id) { task in
+                    TaskRowView(task: task)
+                }
+                Button("Add Task to Project") {
+                    let task = Task(id: UUID().uuidString, projectId: project.id, areaId: project.areaId, title: "New Task", notes: "", scheduledDate: nil, deadline: nil, estimatedTime: nil, spentTime: nil, status: .todo, isTrashed: false)
+                    do { try store.api.createTask(task: task); store.loadAllData() } catch {}
+                }
+            }
         }
-        .navigationTitle("Project")
+        .navigationTitle(project.title)
+        .onChange(of: project.id) { _ in title = project.title }
     }
 }
 
@@ -348,22 +384,42 @@ struct AreaDetailView: View {
     var area: Area
     @State private var title: String
     
+    var areaProjects: [Project] {
+        store.allProjects.filter { $0.areaId == area.id && !$0.isTrashed }
+    }
+    var areaTasks: [Task] {
+        store.allTasks.filter { $0.areaId == area.id && $0.projectId == nil && !$0.isTrashed }
+    }
+    
     init(area: Area) {
         self.area = area
         _title = State(initialValue: area.title)
     }
     
     var body: some View {
-        VStack {
-            TextField("Area Title", text: $title, onCommit: {
-                var updated = area
-                updated.title = title
-                store.updateArea(area: updated)
-            })
-            .font(.title)
-            .padding()
-            Spacer()
+        Form {
+            Section("Area Title") {
+                TextField("Title", text: $title, onCommit: {
+                    var updated = area
+                    updated.title = title
+                    store.updateArea(area: updated)
+                })
+            }
+            Section("Projects") {
+                ForEach(areaProjects, id: \.id) { project in
+                    NavigationLink(destination: ProjectDetailView(project: project)) {
+                        Text(project.title)
+                    }
+                }
+                Button("Add Project") { store.addProject(title: "New Project", areaId: area.id) }
+            }
+            Section("Direct Tasks") {
+                ForEach(areaTasks, id: \.id) { task in
+                    TaskRowView(task: task)
+                }
+            }
         }
-        .navigationTitle("Area")
+        .navigationTitle(area.title)
+        .onChange(of: area.id) { _ in title = area.title }
     }
 }
