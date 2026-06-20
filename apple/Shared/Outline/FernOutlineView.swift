@@ -5,11 +5,11 @@ struct FernOutlineView<Content: View>: NSViewRepresentable {
     var items: [OutlineItem]
     @Binding var selectedItemId: String?
     
-    let content: (OutlineItem) -> Content
-    
     // Drag & Drop handlers
     var onMove: ((_ draggedId: String, _ targetId: String?, _ index: Int) -> Void)?
     var onValidateMove: ((_ draggedId: String, _ targetId: String?, _ index: Int) -> Bool)?
+    
+    let content: (OutlineItem) -> Content
     
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
