@@ -95,7 +95,13 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_projects_is_trashed  ON projects(is_trashed);
             CREATE INDEX IF NOT EXISTS idx_projects_area_id     ON projects(area_id);
         ",
-        )
+        )?;
+
+        // Simple migrations for existing databases
+        let _ = self.conn.execute("ALTER TABLE areas ADD COLUMN position REAL NOT NULL DEFAULT 0.0", []);
+        let _ = self.conn.execute("ALTER TABLE projects ADD COLUMN position REAL NOT NULL DEFAULT 0.0", []);
+
+        Ok(())
     }
 
     // =========================================================================
@@ -1174,7 +1180,7 @@ mod tests {
             id: "ghost".to_string(),
             title: "Ghost".to_string(),
             notes: String::new(),
-            is_archived: false,
+            is_archived: false, position: 0.0,
         };
         assert_eq!(db.update_area(&ghost).unwrap(), 0);
     }
