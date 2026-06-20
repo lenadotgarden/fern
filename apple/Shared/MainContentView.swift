@@ -21,8 +21,8 @@ struct MainContentView: View {
 func handleDrop(providers: [NSItemProvider], areaId: String?, projectId: String?, store: AppStore) -> Bool {
     guard let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) }) else { return false }
     
-    provider.loadDataRepresentation(forTypeIdentifier: UTType.plainText.identifier) { data, _ in
-        guard let data = data, let string = String(data: data, encoding: .utf8) else { return }
+    _ = provider.loadObject(ofClass: NSString.self) { stringProvider, _ in
+        guard let string = stringProvider as? String else { return }
         
         DispatchQueue.main.async {
             if string.hasPrefix("task:") {
