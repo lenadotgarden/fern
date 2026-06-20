@@ -86,7 +86,7 @@ struct SidebarView: View {
             
             ForEach(store.activeAreas, id: \.id) { area in
                 Section(header: Text(area.title).font(.caption).fontWeight(.semibold)) {
-                    NavigationLink(destination: AreaDetailView(area: area)) {
+                    NavigationLink(destination: AreaDetailView(area: area).id(area.id)) {
                         Label(area.title, systemImage: "square.grid.2x2")
                     }
                     .onDrop(of: [.plainText], isTargeted: nil) { providers in
@@ -95,10 +95,14 @@ struct SidebarView: View {
                     
                     let areaProjects = store.activeProjects.filter { $0.areaId == area.id }
                     ForEach(areaProjects, id: \.id) { project in
-                        NavigationLink(destination: ProjectDetailView(project: project)) {
+                        NavigationLink(destination: ProjectDetailView(project: project).id(project.id)) {
                             Label(project.title, systemImage: "circle.circle")
                         }
-                        .onDrag { NSItemProvider(object: "project:\(project.id)" as NSString) }
+                        .onDrag {
+                            NSItemProvider(object: "project:\(project.id)" as NSString)
+                        } preview: {
+                            Text(project.title).padding().background(Color(NSColor.windowBackgroundColor)).cornerRadius(8)
+                        }
                         .onDrop(of: [.plainText], isTargeted: nil) { providers in
                             return handleDrop(providers: providers, areaId: area.id, projectId: project.id, store: store)
                         }
@@ -110,10 +114,14 @@ struct SidebarView: View {
             if !orphanProjects.isEmpty {
                 Section("Projects") {
                     ForEach(orphanProjects, id: \.id) { project in
-                        NavigationLink(destination: ProjectDetailView(project: project)) {
+                        NavigationLink(destination: ProjectDetailView(project: project).id(project.id)) {
                             Label(project.title, systemImage: "circle.circle")
                         }
-                        .onDrag { NSItemProvider(object: "project:\(project.id)" as NSString) }
+                        .onDrag {
+                            NSItemProvider(object: "project:\(project.id)" as NSString)
+                        } preview: {
+                            Text(project.title).padding().background(Color(NSColor.windowBackgroundColor)).cornerRadius(8)
+                        }
                         .onDrop(of: [.plainText], isTargeted: nil) { providers in
                             return handleDrop(providers: providers, areaId: nil, projectId: project.id, store: store)
                         }
@@ -283,6 +291,8 @@ struct TaskRowView: View {
         }
         .onDrag {
             NSItemProvider(object: "task:\(task.id)" as NSString)
+        } preview: {
+            Text(task.title).padding().background(Color(NSColor.windowBackgroundColor)).cornerRadius(8)
         }
     }
 }
@@ -565,7 +575,7 @@ struct AreaDetailView: View {
                             .padding(.horizontal)
                         
                         ForEach(areaProjects, id: \.id) { project in
-                            NavigationLink(destination: ProjectDetailView(project: project)) {
+                            NavigationLink(destination: ProjectDetailView(project: project).id(project.id)) {
                                 HStack {
                                     Image(systemName: "circle.circle")
                                         .foregroundColor(.secondary)
@@ -576,6 +586,11 @@ struct AreaDetailView: View {
                                 .padding(.vertical, 4)
                             }
                             .buttonStyle(PlainButtonStyle())
+                            .onDrag {
+                                NSItemProvider(object: "project:\(project.id)" as NSString)
+                            } preview: {
+                                Text(project.title).padding().background(Color(NSColor.windowBackgroundColor)).cornerRadius(8)
+                            }
                         }
                     }
                     Divider().padding(.horizontal)
