@@ -10,40 +10,22 @@ import SwiftUI
 
 @main
 struct FernApp: App {
+    @StateObject private var store: AppStore
     
     init() {
-        // Test de connexion avec Rust !
+        // On initialise la vraie base de données SQLite persistante pour l'app
         do {
-            let api = try FernApi.newInMemory()
-            
-            let task = Task(
-                id: UUID().uuidString,
-                projectId: nil,
-                areaId: nil,
-                title: "Hello from Rust Core! 🦀",
-                notes: "",
-                scheduledDate: nil,
-                deadline: nil,
-                estimatedTime: nil,
-                spentTime: nil,
-                status: .todo,
-                isTrashed: false
-            )
-            
-            try api.createTask(task: task)
-            let inboxTasks = try api.getInboxTasks()
-            print("🚀 SUCCÈS ! Connecté à Rust. \(inboxTasks.count) tâche trouvée dans l'Inbox.")
-            print("🌿 Titre de la tâche : \(inboxTasks[0].title)")
+            let appStore = try AppStore(inMemory: false)
+            _store = StateObject(wrappedValue: appStore)
         } catch {
-            print("❌ Erreur Rust : \(error)")
+            fatalError("❌ Impossible d'initialiser la base de données Rust : \(error)")
         }
     }
 
     var body: some Scene {
         WindowGroup {
-            Text("Hello fern 🌿")
-                .font(.largeTitle)
-                .padding()
+            ContentView()
+                .environmentObject(store)
         }
     }
 }
