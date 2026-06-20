@@ -112,17 +112,17 @@ struct TaskRowView: View {
         HStack {
             Button(action: {
                 var updated = task
-                updated.status = .logbook
+                updated.status = .done
                 store.updateTask(task: updated)
             }) {
-                Image(systemName: task.status == .logbook ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(task.status == .logbook ? .blue : .secondary)
+                Image(systemName: task.status == .done ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(task.status == .done ? .blue : .secondary)
             }
             .buttonStyle(PlainButtonStyle())
             
             Text(task.title)
-                .strikethrough(task.status == .logbook)
-                .foregroundColor(task.status == .logbook ? .secondary : .primary)
+                .strikethrough(task.status == .done)
+                .foregroundColor(task.status == .done ? .secondary : .primary)
             
             Spacer()
         }
@@ -161,7 +161,6 @@ struct TaskDetailView: View {
                 }
             }
             .navigationTitle("Edit Task")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

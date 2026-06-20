@@ -515,6 +515,8 @@ public protocol FernApiProtocol : AnyObject {
     
     func trashTask(id: String) throws 
     
+    func updateTask(task: Task) throws 
+    
 }
 
 /**
@@ -692,6 +694,13 @@ open func getUpcomingTasks()throws  -> [Task] {
 open func trashTask(id: String)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
     uniffi_fern_core_fn_method_fernapi_trash_task(self.uniffiClonePointer(),
         FfiConverterString.lower(id),$0
+    )
+}
+}
+    
+open func updateTask(task: Task)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_update_task(self.uniffiClonePointer(),
+        FfiConverterTypeTask.lower(task),$0
     )
 }
 }
@@ -1814,6 +1823,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_fern_core_checksum_method_fernapi_trash_task() != 30136) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_fern_core_checksum_method_fernapi_update_task() != 53784) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_fern_core_checksum_constructor_fernapi_new() != 31956) {
