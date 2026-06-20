@@ -122,7 +122,13 @@ struct SidebarView: View {
                             }
                         }
                     }
+                    .onMove { source, destination in
+                        store.moveProject(from: source, to: destination, in: area.id)
+                    }
                 }
+            }
+            .onMove { source, destination in
+                store.moveArea(from: source, to: destination)
             }
             
             let orphanProjects = store.activeProjects.filter { $0.areaId == nil }
@@ -147,6 +153,9 @@ struct SidebarView: View {
                                 Label("Delete Project", systemImage: "trash")
                             }
                         }
+                    }
+                    .onMove { source, destination in
+                        store.moveProject(from: source, to: destination, in: nil)
                     }
                 }
             }

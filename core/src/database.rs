@@ -7,8 +7,8 @@ const TASK_SELECT: &str =
     "SELECT id, project_id, area_id, title, notes, scheduled_date, deadline, \
      estimated_time, spent_time, status, is_trashed FROM tasks";
 const PROJECT_SELECT: &str =
-    "SELECT id, area_id, title, notes, scheduled_date, deadline, status, is_trashed FROM projects";
-const AREA_SELECT: &str = "SELECT id, title, notes, is_archived FROM areas";
+    "SELECT id, area_id, title, notes, scheduled_date, deadline, status, is_trashed, position FROM projects";
+const AREA_SELECT: &str = "SELECT id, title, notes, is_archived, position FROM areas";
 
 /// Wraps a SQLite connection and exposes all fern database operations.
 ///
@@ -55,7 +55,8 @@ impl Database {
                 id          TEXT    PRIMARY KEY NOT NULL,
                 title       TEXT    NOT NULL,
                 notes       TEXT    NOT NULL DEFAULT '',
-                is_archived INTEGER NOT NULL DEFAULT 0
+                is_archived INTEGER NOT NULL DEFAULT 0,
+                position    REAL    NOT NULL DEFAULT 0.0
             );
 
             CREATE TABLE IF NOT EXISTS projects (
@@ -66,7 +67,8 @@ impl Database {
                 scheduled_date TEXT,
                 deadline       TEXT,
                 status         TEXT    NOT NULL DEFAULT 'Todo',
-                is_trashed     INTEGER NOT NULL DEFAULT 0
+                is_trashed     INTEGER NOT NULL DEFAULT 0,
+                position       REAL    NOT NULL DEFAULT 0.0
             );
 
             CREATE TABLE IF NOT EXISTS tasks (
@@ -101,12 +103,11 @@ impl Database {
     // =========================================================================
 
     /// Inserts a new Area.
-    pub fn create_area(&self, area: &Area) -> SqlResult<()> {
+    pub fn create_area(&self, area: &Area) -> SqlResult<usize> {
         self.conn.execute(
-            "INSERT INTO areas (id, title, notes, is_archived) VALUES (?1, ?2, ?3, ?4)",
-            params![area.id, area.title, area.notes, area.is_archived],
-        )?;
-        Ok(())
+            "INSERT INTO areas (id, title, notes, is_archived, position) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![area.id, area.title, area.notes, area.is_archived as i32, area.position],
+        )
     }
 
     /// Returns a single Area by ID, or `None` if not found.
@@ -123,14 +124,22 @@ impl Database {
     pub fn get_active_areas(&self) -> SqlResult<Vec<Area>> {
         let mut stmt = self
             .conn
-            .prepare(&format!("{} WHERE is_archived = 0", AREA_SELECT))?;
-        let rows = stmt.query_map([], map_area_row)?.collect();
+            .prepare("SELECT id, title, notes, is_archived, position FROM areas WHERE is_archived = 0 ORDER BY position ASC")?;
+        let rows = stmt.query_map([], |row| {
+            Ok(Area {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                notes: row.get(2)?,
+                is_archived: row.get::<_, i32>(3)? != 0,
+                position: row.get(4)?,
+            })
+        })?.collect();
         rows
     }
 
     /// Returns every area, including archived ones — use for settings screens.
     pub fn get_all_areas(&self) -> SqlResult<Vec<Area>> {
-        let mut stmt = self.conn.prepare(AREA_SELECT)?;
+        let mut stmt = self.conn.prepare(&format!("{} ORDER BY position ASC", AREA_SELECT))?;
         let rows = stmt.query_map([], map_area_row)?.collect();
         rows
     }
@@ -139,8 +148,8 @@ impl Database {
     /// Returns the number of rows affected (0 if the ID does not exist).
     pub fn update_area(&self, area: &Area) -> SqlResult<usize> {
         self.conn.execute(
-            "UPDATE areas SET title = ?1, notes = ?2 WHERE id = ?3",
-            params![area.title, area.notes, area.id],
+            "UPDATE areas SET title = ?1, notes = ?2, position = ?4 WHERE id = ?3",
+            params![area.title, area.notes, area.id, area.position],
         )
     }
 
@@ -174,10 +183,10 @@ impl Database {
     // =========================================================================
 
     /// Inserts a new Project.
-    pub fn create_project(&self, project: &Project) -> SqlResult<()> {
+    pub fn create_project(&self, project: &Project) -> SqlResult<usize> {
         self.conn.execute(
-            "INSERT INTO projects (id, area_id, title, notes, scheduled_date, deadline, status, is_trashed)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO projects (id, area_id, title, notes, scheduled_date, deadline, status, is_trashed, position)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 project.id,
                 project.area_id,
@@ -186,10 +195,10 @@ impl Database {
                 project.scheduled_date.as_ref().map(|d| d.to_db_string()),
                 project.deadline.map(|d| d.to_string()),
                 project.status.as_str(),
-                project.is_trashed,
+                project.is_trashed as i32,
+                project.position,
             ],
-        )?;
-        Ok(())
+        )
     }
 
     /// Returns a single Project by ID, or `None` if not found.
@@ -197,15 +206,15 @@ impl Database {
         let mut stmt = self
             .conn
             .prepare(&format!("{} WHERE id = ?1", PROJECT_SELECT))?;
-        let mut rows = stmt.query_map(params![id], map_project_row)?;
+        let mut rows = stmt.query_map(params![id], Self::map_project_row)?;
 
         rows.next().transpose()
     }
 
     /// Returns every project (all statuses, including trashed).
     pub fn get_all_projects(&self) -> SqlResult<Vec<Project>> {
-        let mut stmt = self.conn.prepare(PROJECT_SELECT)?;
-        let rows = stmt.query_map([], map_project_row)?.collect();
+        let mut stmt = self.conn.prepare(&format!("{} ORDER BY position ASC", PROJECT_SELECT))?;
+        let rows = stmt.query_map([], Self::map_project_row)?.collect();
         rows
     }
 
@@ -214,7 +223,7 @@ impl Database {
     pub fn update_project(&self, project: &Project) -> SqlResult<usize> {
         self.conn.execute(
             "UPDATE projects SET area_id = ?1, title = ?2, notes = ?3,
-             scheduled_date = ?4, deadline = ?5, status = ?6, is_trashed = ?7
+             scheduled_date = ?4, deadline = ?5, status = ?6, is_trashed = ?7, position = ?9
              WHERE id = ?8",
             params![
                 project.area_id,
@@ -223,8 +232,9 @@ impl Database {
                 project.scheduled_date.as_ref().map(|d| d.to_db_string()),
                 project.deadline.map(|d| d.to_string()),
                 project.status.as_str(),
-                project.is_trashed,
+                project.is_trashed as i32,
                 project.id,
+                project.position
             ],
         )
     }
@@ -288,30 +298,31 @@ impl Database {
             "{} WHERE status = 'Todo' AND is_trashed = 0 \
              AND (scheduled_date IS NULL \
                   OR (scheduled_date != 'someday' \
-                      AND SUBSTR(scheduled_date, 1, 10) <= DATE('now', 'localtime')))",
+                      AND SUBSTR(scheduled_date, 1, 10) <= DATE('now', 'localtime'))) \
+             ORDER BY position ASC",
             PROJECT_SELECT
         ))?;
-        let rows = stmt.query_map([], map_project_row)?.collect();
+        let rows = stmt.query_map([], Self::map_project_row)?.collect();
         rows
     }
 
     /// **Someday** — Todo projects deferred indefinitely, not trashed.
     pub fn get_someday_projects(&self) -> SqlResult<Vec<Project>> {
         let mut stmt = self.conn.prepare(&format!(
-            "{} WHERE status = 'Todo' AND is_trashed = 0 AND scheduled_date = 'someday'",
+            "{} WHERE status = 'Todo' AND is_trashed = 0 AND scheduled_date = 'someday' ORDER BY position ASC",
             PROJECT_SELECT
         ))?;
-        let rows = stmt.query_map([], map_project_row)?.collect();
+        let rows = stmt.query_map([], Self::map_project_row)?.collect();
         rows
     }
 
     /// **Logbook** — Done or Cancelled projects, not trashed.
     pub fn get_logbook_projects(&self) -> SqlResult<Vec<Project>> {
         let mut stmt = self.conn.prepare(&format!(
-            "{} WHERE status IN ('Done', 'Cancelled') AND is_trashed = 0",
+            "{} WHERE status IN ('Done', 'Cancelled') AND is_trashed = 0 ORDER BY position ASC",
             PROJECT_SELECT
         ))?;
-        let rows = stmt.query_map([], map_project_row)?.collect();
+        let rows = stmt.query_map([], Self::map_project_row)?.collect();
         rows
     }
 
@@ -319,9 +330,27 @@ impl Database {
     pub fn get_trashed_projects(&self) -> SqlResult<Vec<Project>> {
         let mut stmt = self
             .conn
-            .prepare(&format!("{} WHERE is_trashed = 1", PROJECT_SELECT))?;
-        let rows = stmt.query_map([], map_project_row)?.collect();
+            .prepare(&format!("{} WHERE is_trashed = 1 ORDER BY position ASC", PROJECT_SELECT))?;
+        let rows = stmt.query_map([], Self::map_project_row)?.collect();
         rows
+    }
+
+    fn map_project_row(row: &rusqlite::Row) -> SqlResult<Project> {
+        Ok(Project {
+            id: row.get(0)?,
+            area_id: row.get(1)?,
+            title: row.get(2)?,
+            notes: row.get(3)?,
+            scheduled_date: row
+                .get::<_, Option<String>>(4)?
+                .and_then(|s| ScheduledDate::from_db_string(&s).ok()),
+            deadline: row
+                .get::<_, Option<String>>(5)?
+                .and_then(|s| chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok()),
+            status: row.get::<_, String>(6)?.parse().unwrap_or(ProjectStatus::Todo),
+            is_trashed: row.get::<_, i32>(7)? != 0,
+            position: row.get(8)?,
+        })
     }
 
     // =========================================================================
@@ -537,52 +566,8 @@ fn map_area_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Area> {
         id: row.get(0)?,
         title: row.get(1)?,
         notes: row.get(2)?,
-        is_archived: row.get(3)?,
-    })
-}
-
-fn map_project_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
-    let scheduled_str: Option<String> = row.get(4)?;
-    let deadline_str: Option<String> = row.get(5)?;
-    let status_str: String = row.get(6)?;
-
-    let scheduled_date = scheduled_str
-        .as_deref()
-        .map(ScheduledDate::from_db_string)
-        .transpose()
-        .map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(
-                4,
-                rusqlite::types::Type::Text,
-                Box::new(ParseError(e)),
-            )
-        })?;
-
-    let deadline = deadline_str
-        .as_deref()
-        .map(|s| s.parse::<chrono::NaiveDate>())
-        .transpose()
-        .map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::new(e))
-        })?;
-
-    let status = status_str.parse::<ProjectStatus>().map_err(|e| {
-        rusqlite::Error::FromSqlConversionFailure(
-            6,
-            rusqlite::types::Type::Text,
-            Box::new(ParseError(e)),
-        )
-    })?;
-
-    Ok(Project {
-        id: row.get(0)?,
-        area_id: row.get(1)?,
-        title: row.get(2)?,
-        notes: row.get(3)?,
-        scheduled_date,
-        deadline,
-        status,
-        is_trashed: row.get(7)?,
+        is_archived: row.get::<_, i32>(3)? != 0,
+        position: row.get(4)?,
     })
 }
 

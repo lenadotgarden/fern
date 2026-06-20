@@ -86,7 +86,8 @@ class AppStore: ObservableObject {
             scheduledDate: nil,
             deadline: nil,
             status: .todo,
-            isTrashed: false
+            isTrashed: false,
+            position: 0.0
         )
         do {
             try api.createProject(project: project)
@@ -110,7 +111,8 @@ class AppStore: ObservableObject {
             id: UUID().uuidString,
             title: title,
             notes: "",
-            isArchived: false
+            isArchived: false,
+            position: 0.0
         )
         do {
             try api.createArea(area: area)
@@ -170,6 +172,68 @@ class AppStore: ObservableObject {
             loadAllData()
         } catch {
             print("❌ Failed to delete area: \(error)")
+        }
+    }
+    
+    func moveArea(from source: IndexSet, to destination: Int) {
+        guard let sourceIndex = source.first else { return }
+        let movedArea = activeAreas[sourceIndex]
+        var newAreas = activeAreas
+        newAreas.move(fromOffsets: source, toOffset: destination)
+        
+        guard let newIndex = newAreas.firstIndex(where: { $0.id == movedArea.id }) else { return }
+        
+        let prevPos = newIndex > 0 ? newAreas[newIndex - 1].position : nil
+        let nextPos = newIndex < newAreas.count - 1 ? newAreas[newIndex + 1].position : nil
+        
+        let newPos: Double
+        if let p = prevPos, let n = nextPos {
+            newPos = (p + n) / 2.0
+        } else if let p = prevPos {
+            newPos = p + 1.0
+        } else if let n = nextPos {
+            newPos = n - 1.0
+        } else {
+            newPos = 0.0
+        }
+        
+        do {
+            try api.updateAreaPosition(id: movedArea.id, newPosition: newPos)
+            loadAllData()
+        } catch {
+            print("❌ Failed to move area: \(error)")
+        }
+    }
+
+    func moveProject(from source: IndexSet, to destination: Int, in areaId: String?) {
+        let projects = activeProjects.filter { $0.areaId == areaId }
+        guard let sourceIndex = source.first else { return }
+        let movedProject = projects[sourceIndex]
+        
+        var newProjects = projects
+        newProjects.move(fromOffsets: source, toOffset: destination)
+        
+        guard let newIndex = newProjects.firstIndex(where: { $0.id == movedProject.id }) else { return }
+        
+        let prevPos = newIndex > 0 ? newProjects[newIndex - 1].position : nil
+        let nextPos = newIndex < newProjects.count - 1 ? newProjects[newIndex + 1].position : nil
+        
+        let newPos: Double
+        if let p = prevPos, let n = nextPos {
+            newPos = (p + n) / 2.0
+        } else if let p = prevPos {
+            newPos = p + 1.0
+        } else if let n = nextPos {
+            newPos = n - 1.0
+        } else {
+            newPos = 0.0
+        }
+        
+        do {
+            try api.updateProjectPosition(id: movedProject.id, newPosition: newPos)
+            loadAllData()
+        } catch {
+            print("❌ Failed to move project: \(error)")
         }
     }
 }
