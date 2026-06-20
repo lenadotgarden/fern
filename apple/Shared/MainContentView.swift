@@ -8,17 +8,37 @@ struct MainContentView: View {
     
     var body: some View {
         NavigationSplitView {
-            FernOutlineView(
-                items: buildSidebarItems(),
-                selectedItemId: $selectedItemId,
-                onMove: { draggedId, targetId, index in
-                    handleOutlineDrop(draggedId: draggedId, targetId: targetId, index: index)
-                },
-                onValidateMove: { draggedId, targetId, index in
-                    validateOutlineDrop(draggedId: draggedId, targetId: targetId, index: index)
+            VStack(spacing: 0) {
+                FernOutlineView(
+                    items: buildSidebarItems(),
+                    selectedItemId: $selectedItemId,
+                    onMove: { draggedId, targetId, index in
+                        handleOutlineDrop(draggedId: draggedId, targetId: targetId, index: index)
+                    },
+                    onValidateMove: { draggedId, targetId, index in
+                        validateOutlineDrop(draggedId: draggedId, targetId: targetId, index: index)
+                    }
+                ) { item in
+                    SidebarItemView(item: item)
                 }
-            ) { item in
-                SidebarItemView(item: item)
+                
+                Divider()
+                
+                HStack {
+                    Button(action: { store.addArea(title: "New Area") }) {
+                        Label("New Area", systemImage: "plus.square.dashed")
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    
+                    Spacer()
+                    
+                    Button(action: { store.addProject(title: "New Project") }) {
+                        Label("New Project", systemImage: "plus.circle.dashed")
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                .padding()
+                .background(Color(NSColor.controlBackgroundColor))
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 300)
         } detail: {
