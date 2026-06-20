@@ -5,7 +5,7 @@ use crate::models::{Area, Project, ProjectStatus, ScheduledDate, Task, TaskStatu
 // Column lists — defined once so every SELECT is consistent and easy to update.
 const TASK_SELECT: &str =
     "SELECT id, project_id, area_id, title, notes, scheduled_date, deadline, \
-     estimated_time, spent_time, status, is_trashed FROM tasks";
+     estimated_time, spent_time, status, is_trashed, position FROM tasks";
 const PROJECT_SELECT: &str =
     "SELECT id, area_id, title, notes, scheduled_date, deadline, status, is_trashed, position FROM projects";
 const AREA_SELECT: &str = "SELECT id, title, notes, is_archived, position FROM areas";
@@ -82,7 +82,8 @@ impl Database {
                 estimated_time INTEGER,
                 spent_time     INTEGER,
                 status         TEXT    NOT NULL DEFAULT 'Todo',
-                is_trashed     INTEGER NOT NULL DEFAULT 0
+                is_trashed     INTEGER NOT NULL DEFAULT 0,
+                position       REAL    NOT NULL DEFAULT 0.0
             );
 
             -- Indexes for the view queries fired by the app on every screen load.
@@ -100,6 +101,7 @@ impl Database {
         // Simple migrations for existing databases
         let _ = self.conn.execute("ALTER TABLE areas ADD COLUMN position REAL NOT NULL DEFAULT 0.0", []);
         let _ = self.conn.execute("ALTER TABLE projects ADD COLUMN position REAL NOT NULL DEFAULT 0.0", []);
+        let _ = self.conn.execute("ALTER TABLE tasks ADD COLUMN position REAL NOT NULL DEFAULT 0.0", []);
 
         Ok(())
     }
@@ -365,22 +367,26 @@ impl Database {
 
     /// Inserts a new Task.
     pub fn create_task(&self, task: &Task) -> SqlResult<()> {
+        let scheduled_str = task.scheduled_date.as_ref().map(|d| d.to_db_string());
+        let deadline_str = task.deadline.map(|d| d.to_string());
         self.conn.execute(
-            "INSERT INTO tasks (id, project_id, area_id, title, notes, scheduled_date,
-             deadline, estimated_time, spent_time, status, is_trashed)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            "INSERT INTO tasks (
+                id, project_id, area_id, title, notes, scheduled_date, deadline,
+                estimated_time, spent_time, status, is_trashed, position
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             params![
                 task.id,
                 task.project_id,
                 task.area_id,
                 task.title,
                 task.notes,
-                task.scheduled_date.as_ref().map(|d| d.to_db_string()),
-                task.deadline.map(|d| d.to_string()),
+                scheduled_str,
+                deadline_str,
                 task.estimated_time,
                 task.spent_time,
                 task.status.as_str(),
-                task.is_trashed,
+                task.is_trashed as i32,
+                task.position,
             ],
         )?;
         Ok(())
@@ -398,7 +404,7 @@ impl Database {
 
     /// Returns every task (all statuses, including trashed).
     pub fn get_all_tasks(&self) -> SqlResult<Vec<Task>> {
-        let mut stmt = self.conn.prepare(TASK_SELECT)?;
+        let mut stmt = self.conn.prepare(&format!("{} ORDER BY position ASC", TASK_SELECT))?;
         let rows = stmt.query_map([], map_task_row)?.collect();
         rows
     }
@@ -417,21 +423,34 @@ impl Database {
     /// Updates all mutable fields of an existing Task.
     /// Returns the number of rows affected (0 if the ID does not exist).
     pub fn update_task(&self, task: &Task) -> SqlResult<usize> {
+        let scheduled_str = task.scheduled_date.as_ref().map(|d| d.to_db_string());
+        let deadline_str = task.deadline.map(|d| d.to_string());
         self.conn.execute(
-            "UPDATE tasks SET project_id = ?1, area_id = ?2, title = ?3, notes = ?4,
-             scheduled_date = ?5, deadline = ?6, estimated_time = ?7, spent_time = ?8,
-             status = ?9, is_trashed = ?10 WHERE id = ?11",
+            "UPDATE tasks
+             SET project_id = ?1,
+                 area_id = ?2,
+                 title = ?3,
+                 notes = ?4,
+                 scheduled_date = ?5,
+                 deadline = ?6,
+                 estimated_time = ?7,
+                 spent_time = ?8,
+                 status = ?9,
+                 is_trashed = ?10,
+                 position = ?11
+             WHERE id = ?12",
             params![
                 task.project_id,
                 task.area_id,
                 task.title,
                 task.notes,
-                task.scheduled_date.as_ref().map(|d| d.to_db_string()),
-                task.deadline.map(|d| d.to_string()),
+                scheduled_str,
+                deadline_str,
                 task.estimated_time,
                 task.spent_time,
                 task.status.as_str(),
-                task.is_trashed,
+                task.is_trashed as i32,
+                task.position,
                 task.id,
             ],
         )
@@ -474,7 +493,7 @@ impl Database {
     pub fn get_inbox_tasks(&self) -> SqlResult<Vec<Task>> {
         let mut stmt = self.conn.prepare(&format!(
             "{} WHERE status = 'Todo' AND is_trashed = 0 \
-             AND project_id IS NULL AND area_id IS NULL AND scheduled_date IS NULL",
+             AND project_id IS NULL AND area_id IS NULL AND scheduled_date IS NULL ORDER BY position ASC",
             TASK_SELECT
         ))?;
         let rows = stmt.query_map([], map_task_row)?.collect();
@@ -489,7 +508,7 @@ impl Database {
             "{} WHERE status = 'Todo' AND is_trashed = 0 \
              AND scheduled_date IS NOT NULL \
              AND scheduled_date != 'someday' \
-             AND SUBSTR(scheduled_date, 1, 10) = DATE('now', 'localtime')",
+             AND SUBSTR(scheduled_date, 1, 10) = DATE('now', 'localtime') ORDER BY position ASC",
             TASK_SELECT
         ))?;
         let rows = stmt.query_map([], map_task_row)?.collect();
@@ -502,7 +521,7 @@ impl Database {
             "{} WHERE status = 'Todo' AND is_trashed = 0 \
              AND scheduled_date IS NOT NULL \
              AND scheduled_date != 'someday' \
-             AND SUBSTR(scheduled_date, 1, 10) > DATE('now', 'localtime')",
+             AND SUBSTR(scheduled_date, 1, 10) > DATE('now', 'localtime') ORDER BY position ASC",
             TASK_SELECT
         ))?;
         let rows = stmt.query_map([], map_task_row)?.collect();
@@ -520,7 +539,7 @@ impl Database {
                  (scheduled_date IS NULL AND (project_id IS NOT NULL OR area_id IS NOT NULL)) \
                  OR \
                  (scheduled_date IS NOT NULL AND scheduled_date != 'someday' AND SUBSTR(scheduled_date, 1, 10) <= DATE('now', 'localtime')) \
-             )",
+             ) ORDER BY position ASC",
             TASK_SELECT
         ))?;
         let rows = stmt.query_map([], map_task_row)?.collect();
@@ -530,7 +549,7 @@ impl Database {
     /// **Someday** — Todo tasks deferred indefinitely, not trashed.
     pub fn get_someday_tasks(&self) -> SqlResult<Vec<Task>> {
         let mut stmt = self.conn.prepare(&format!(
-            "{} WHERE status = 'Todo' AND is_trashed = 0 AND scheduled_date = 'someday'",
+            "{} WHERE status = 'Todo' AND is_trashed = 0 AND scheduled_date = 'someday' ORDER BY position ASC",
             TASK_SELECT
         ))?;
         let rows = stmt.query_map([], map_task_row)?.collect();
@@ -542,7 +561,7 @@ impl Database {
     /// preserving its origin context (no project, no area).
     pub fn get_logbook_tasks(&self) -> SqlResult<Vec<Task>> {
         let mut stmt = self.conn.prepare(&format!(
-            "{} WHERE status IN ('Done', 'Cancelled') AND is_trashed = 0",
+            "{} WHERE status IN ('Done', 'Cancelled') AND is_trashed = 0 ORDER BY position ASC",
             TASK_SELECT
         ))?;
         let rows = stmt.query_map([], map_task_row)?.collect();
@@ -553,7 +572,7 @@ impl Database {
     pub fn get_trashed_tasks(&self) -> SqlResult<Vec<Task>> {
         let mut stmt = self
             .conn
-            .prepare(&format!("{} WHERE is_trashed = 1", TASK_SELECT))?;
+            .prepare(&format!("{} WHERE is_trashed = 1 ORDER BY position ASC", TASK_SELECT))?;
         let rows = stmt.query_map([], map_task_row)?.collect();
         rows
     }
@@ -621,7 +640,8 @@ fn map_task_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
         estimated_time: row.get(7)?,
         spent_time: row.get(8)?,
         status,
-        is_trashed: row.get(10)?,
+        is_trashed: row.get::<_, i32>(10)? != 0,
+        position: row.get(11)?,
     })
 }
 

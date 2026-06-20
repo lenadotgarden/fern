@@ -230,6 +230,18 @@ impl FernAPI {
         Ok(())
     }
 
+    pub fn update_task_position(&self, id: String, new_position: f64) -> Result<(), FernError> {
+        let db = self.db.lock().unwrap();
+        let mut task = db
+            .get_task(&id)
+            .map_err(|e| FernError::DatabaseError(e.to_string()))?
+            .ok_or_else(|| FernError::DatabaseError("Task not found".to_string()))?;
+        task.position = new_position;
+        db.update_task(&task)
+            .map(|_| ())
+            .map_err(|e| FernError::DatabaseError(e.to_string()))
+    }
+
     pub fn get_inbox_tasks(&self) -> Result<Vec<Task>, FernError> {
         self.db
             .lock()

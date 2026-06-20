@@ -559,6 +559,8 @@ public protocol FernApiProtocol : AnyObject {
     
     func updateTask(task: Task) throws 
     
+    func updateTaskPosition(id: String, newPosition: Double) throws 
+    
 }
 
 /**
@@ -836,6 +838,14 @@ open func updateProjectPosition(id: String, newPosition: Double)throws  {try rus
 open func updateTask(task: Task)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
     uniffi_fern_core_fn_method_fernapi_update_task(self.uniffiClonePointer(),
         FfiConverterTypeTask.lower(task),$0
+    )
+}
+}
+    
+open func updateTaskPosition(id: String, newPosition: Double)throws  {try rustCallWithError(FfiConverterTypeFernError.lift) {
+    uniffi_fern_core_fn_method_fernapi_update_task_position(self.uniffiClonePointer(),
+        FfiConverterString.lower(id),
+        FfiConverterDouble.lower(newPosition),$0
     )
 }
 }
@@ -1213,6 +1223,10 @@ public struct Task {
      * If true, the task is in the Trash. Independent of `status`.
      */
     public var isTrashed: Bool
+    /**
+     * Sorting position for manual ordering
+     */
+    public var position: Double
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -1232,7 +1246,10 @@ public struct Task {
          */status: TaskStatus, 
         /**
          * If true, the task is in the Trash. Independent of `status`.
-         */isTrashed: Bool) {
+         */isTrashed: Bool, 
+        /**
+         * Sorting position for manual ordering
+         */position: Double) {
         self.id = id
         self.projectId = projectId
         self.areaId = areaId
@@ -1244,6 +1261,7 @@ public struct Task {
         self.spentTime = spentTime
         self.status = status
         self.isTrashed = isTrashed
+        self.position = position
     }
 }
 
@@ -1284,6 +1302,9 @@ extension Task: Equatable, Hashable {
         if lhs.isTrashed != rhs.isTrashed {
             return false
         }
+        if lhs.position != rhs.position {
+            return false
+        }
         return true
     }
 
@@ -1299,6 +1320,7 @@ extension Task: Equatable, Hashable {
         hasher.combine(spentTime)
         hasher.combine(status)
         hasher.combine(isTrashed)
+        hasher.combine(position)
     }
 }
 
@@ -1320,7 +1342,8 @@ public struct FfiConverterTypeTask: FfiConverterRustBuffer {
                 estimatedTime: FfiConverterOptionInt64.read(from: &buf), 
                 spentTime: FfiConverterOptionInt64.read(from: &buf), 
                 status: FfiConverterTypeTaskStatus.read(from: &buf), 
-                isTrashed: FfiConverterBool.read(from: &buf)
+                isTrashed: FfiConverterBool.read(from: &buf), 
+                position: FfiConverterDouble.read(from: &buf)
         )
     }
 
@@ -1336,6 +1359,7 @@ public struct FfiConverterTypeTask: FfiConverterRustBuffer {
         FfiConverterOptionInt64.write(value.spentTime, into: &buf)
         FfiConverterTypeTaskStatus.write(value.status, into: &buf)
         FfiConverterBool.write(value.isTrashed, into: &buf)
+        FfiConverterDouble.write(value.position, into: &buf)
     }
 }
 
@@ -2028,6 +2052,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_fern_core_checksum_method_fernapi_update_task() != 53784) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_fern_core_checksum_method_fernapi_update_task_position() != 60255) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_fern_core_checksum_constructor_fernapi_new() != 31956) {

@@ -236,6 +236,37 @@ class AppStore: ObservableObject {
             print("❌ Failed to move project: \(error)")
         }
     }
+
+    func moveTask(from source: IndexSet, to destination: Int, tasksContext: [Task]) {
+        guard let sourceIndex = source.first else { return }
+        let movedTask = tasksContext[sourceIndex]
+        
+        var newTasks = tasksContext
+        newTasks.move(fromOffsets: source, toOffset: destination)
+        
+        guard let newIndex = newTasks.firstIndex(where: { $0.id == movedTask.id }) else { return }
+        
+        let prevPos = newIndex > 0 ? newTasks[newIndex - 1].position : nil
+        let nextPos = newIndex < newTasks.count - 1 ? newTasks[newIndex + 1].position : nil
+        
+        let newPos: Double
+        if let p = prevPos, let n = nextPos {
+            newPos = (p + n) / 2.0
+        } else if let p = prevPos {
+            newPos = p + 1.0
+        } else if let n = nextPos {
+            newPos = n - 1.0
+        } else {
+            newPos = 0.0
+        }
+        
+        do {
+            try api.updateTaskPosition(id: movedTask.id, newPosition: newPos)
+            loadAllData()
+        } catch {
+            print("❌ Failed to move task: \(error)")
+        }
+    }
 }
 
 extension Task {
@@ -251,7 +282,8 @@ extension Task {
             estimatedTime: nil,
             spentTime: nil,
             status: .todo,
-            isTrashed: false
+            isTrashed: false,
+            position: 0.0
         )
     }
 }

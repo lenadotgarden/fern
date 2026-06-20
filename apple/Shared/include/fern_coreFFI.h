@@ -417,6 +417,11 @@ void uniffi_fern_core_fn_method_fernapi_update_project_position(void*_Nonnull pt
 void uniffi_fern_core_fn_method_fernapi_update_task(void*_Nonnull ptr, RustBuffer task, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_UPDATE_TASK_POSITION
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_FN_METHOD_FERNAPI_UPDATE_TASK_POSITION
+void uniffi_fern_core_fn_method_fernapi_update_task_position(void*_Nonnull ptr, RustBuffer id, double new_position, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_FFI_FERN_CORE_RUSTBUFFER_ALLOC
 #define UNIFFI_FFIDEF_FFI_FERN_CORE_RUSTBUFFER_ALLOC
 RustBuffer ffi_fern_core_rustbuffer_alloc(uint64_t size, RustCallStatus *_Nonnull out_status
@@ -868,6 +873,12 @@ uint16_t uniffi_fern_core_checksum_method_fernapi_update_project_position(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_UPDATE_TASK
 #define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_UPDATE_TASK
 uint16_t uniffi_fern_core_checksum_method_fernapi_update_task(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_UPDATE_TASK_POSITION
+#define UNIFFI_FFIDEF_UNIFFI_FERN_CORE_CHECKSUM_METHOD_FERNAPI_UPDATE_TASK_POSITION
+uint16_t uniffi_fern_core_checksum_method_fernapi_update_task_position(void
     
 );
 #endif

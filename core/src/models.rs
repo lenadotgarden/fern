@@ -299,6 +299,8 @@ pub struct Task {
     pub status: TaskStatus,
     /// If true, the task is in the Trash. Independent of `status`.
     pub is_trashed: bool,
+    /// Sorting position for manual ordering
+    pub position: f64,
 }
 
 impl Task {
@@ -317,6 +319,7 @@ impl Task {
             spent_time: None,
             status: TaskStatus::Todo,
             is_trashed: false,
+            position: 0.0,
         }
     }
 }
