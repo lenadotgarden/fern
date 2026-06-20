@@ -165,7 +165,7 @@ struct TaskRowView: View {
         HStack {
             Button(action: {
                 var updated = task
-                updated.status = .done
+                updated.status = (task.status == .done) ? .todo : .done
                 store.updateTask(task: updated)
             }) {
                 Image(systemName: task.status == .done ? "checkmark.circle.fill" : "circle")
