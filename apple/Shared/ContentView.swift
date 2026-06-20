@@ -61,11 +61,7 @@ struct InboxView: View {
                     .foregroundColor(.secondary)
             } else {
                 ForEach(store.inboxTasks, id: \.id) { task in
-                    HStack {
-                        Image(systemName: "circle")
-                            .foregroundColor(.secondary)
-                        Text(task.title)
-                    }
+                    TaskRowView(task: task)
                 }
             }
         }
@@ -104,6 +100,85 @@ struct InboxView: View {
             }
             .presentationDetents([.medium])
         }
+    }
+}
+
+struct TaskRowView: View {
+    @EnvironmentObject var store: AppStore
+    let task: Task
+    @State private var showingDetail = false
+    
+    var body: some View {
+        HStack {
+            Button(action: {
+                var updated = task
+                updated.status = .logbook
+                store.updateTask(task: updated)
+            }) {
+                Image(systemName: task.status == .logbook ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(task.status == .logbook ? .blue : .secondary)
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            Text(task.title)
+                .strikethrough(task.status == .logbook)
+                .foregroundColor(task.status == .logbook ? .secondary : .primary)
+            
+            Spacer()
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showingDetail = true
+        }
+        .sheet(isPresented: $showingDetail) {
+            TaskDetailView(task: task)
+        }
+    }
+}
+
+struct TaskDetailView: View {
+    @EnvironmentObject var store: AppStore
+    @Environment(\.dismiss) var dismiss
+    
+    @State private var title: String
+    @State private var notes: String
+    
+    var task: Task
+    
+    init(task: Task) {
+        self.task = task
+        _title = State(initialValue: task.title)
+        _notes = State(initialValue: task.notes)
+    }
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Title", text: $title)
+                    TextField("Notes", text: $notes, axis: .vertical)
+                        .lineLimit(3...10)
+                }
+            }
+            .navigationTitle("Edit Task")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        var updated = task
+                        updated.title = title
+                        updated.notes = notes
+                        store.updateTask(task: updated)
+                        dismiss()
+                    }
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 

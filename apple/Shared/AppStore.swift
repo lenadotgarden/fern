@@ -56,6 +56,15 @@ class AppStore: ObservableObject {
             print("❌ Failed to create task: \(error)")
         }
     }
+    
+    func updateTask(task: Task) {
+        do {
+            try api.updateTask(task: task)
+            loadAllData()
+        } catch {
+            print("❌ Failed to update task: \(error)")
+        }
+    }
 }
 
 extension Task {
