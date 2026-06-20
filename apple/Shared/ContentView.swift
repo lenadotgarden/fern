@@ -39,10 +39,8 @@ func handleDrop(providers: [NSItemProvider], areaId: String?, projectId: String?
                 let pId = String(string.dropFirst(8))
                 if var project = store.allProjects.first(where: { $0.id == pId }) {
                     // Drop project into area or inbox
-                    if projectId == nil {
-                        project.areaId = areaId
-                        store.updateProject(project: project)
-                    }
+                    project.areaId = areaId
+                    store.updateProject(project: project)
                 }
             }
         }
