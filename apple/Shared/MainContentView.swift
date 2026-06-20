@@ -18,34 +18,30 @@ struct MainContentView: View {
     }
 }
 
-func handleDrop(providers: [NSItemProvider], areaId: String?, projectId: String?, store: AppStore) -> Bool {
-    guard let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) }) else { return false }
-    
-    _ = provider.loadObject(ofClass: NSString.self) { stringProvider, _ in
-        guard let string = stringProvider as? String else { return }
-        
-        DispatchQueue.main.async {
-            if string.hasPrefix("task:") {
-                let taskId = String(string.dropFirst(5))
-                if var task = store.allTasks.first(where: { $0.id == taskId }) {
-                    task.areaId = areaId
-                    task.projectId = projectId
-                    if projectId != nil && areaId == nil {
-                        task.areaId = store.allProjects.first(where: { $0.id == projectId })?.areaId
-                    }
-                    store.updateTask(task: task)
+func handleDropStrings(_ items: [String], areaId: String?, projectId: String?, store: AppStore) -> Bool {
+    var handled = false
+    for string in items {
+        if string.hasPrefix("task:") {
+            let taskId = String(string.dropFirst(5))
+            if var task = store.allTasks.first(where: { $0.id == taskId }) {
+                task.areaId = areaId
+                task.projectId = projectId
+                if projectId != nil && areaId == nil {
+                    task.areaId = store.allProjects.first(where: { $0.id == projectId })?.areaId
                 }
-            } else if string.hasPrefix("project:") {
-                let pId = String(string.dropFirst(8))
-                if var project = store.allProjects.first(where: { $0.id == pId }) {
-                    // Drop project into area or inbox
-                    project.areaId = areaId
-                    store.updateProject(project: project)
-                }
+                store.updateTask(task: task)
+                handled = true
+            }
+        } else if string.hasPrefix("project:") {
+            let pId = String(string.dropFirst(8))
+            if var project = store.allProjects.first(where: { $0.id == pId }) {
+                project.areaId = areaId
+                store.updateProject(project: project)
+                handled = true
             }
         }
     }
-    return true
+    return handled
 }
 
 struct SidebarView: View {
@@ -58,8 +54,8 @@ struct SidebarView: View {
                     Label("Inbox", systemImage: "tray")
                         .badge(store.inboxTasks.count)
                 }
-                .onDrop(of: [.plainText], isTargeted: nil) { providers in
-                    return handleDrop(providers: providers, areaId: nil, projectId: nil, store: store)
+                .dropDestination(for: String.self) { items, _ in
+                    return handleDropStrings(items, areaId: nil, projectId: nil, store: store)
                 }
                 NavigationLink(destination: TodayView()) {
                     Label("Today", systemImage: "star")
@@ -90,8 +86,8 @@ struct SidebarView: View {
                     NavigationLink(destination: AreaDetailView(area: area).id(area.id)) {
                         Label(area.title, systemImage: "square.grid.2x2")
                     }
-                    .onDrop(of: [.plainText], isTargeted: nil) { providers in
-                        return handleDrop(providers: providers, areaId: area.id, projectId: nil, store: store)
+                    .dropDestination(for: String.self) { items, _ in
+                        return handleDropStrings(items, areaId: area.id, projectId: nil, store: store)
                     }
                     .contextMenu {
                         Button(role: .destructive, action: {
@@ -106,13 +102,9 @@ struct SidebarView: View {
                         NavigationLink(destination: ProjectDetailView(project: project).id(project.id)) {
                             Label(project.title, systemImage: "circle.circle")
                         }
-                        .onDrag {
-                            NSItemProvider(object: "project:\(project.id)" as NSString)
-                        } preview: {
-                            Text(project.title).padding().background(Color(NSColor.windowBackgroundColor)).cornerRadius(8)
-                        }
-                        .onDrop(of: [.plainText], isTargeted: nil) { providers in
-                            return handleDrop(providers: providers, areaId: area.id, projectId: project.id, store: store)
+                        .draggable("project:\(project.id)")
+                        .dropDestination(for: String.self) { items, _ in
+                            return handleDropStrings(items, areaId: area.id, projectId: project.id, store: store)
                         }
                         .contextMenu {
                             Button(role: .destructive, action: {
@@ -138,13 +130,9 @@ struct SidebarView: View {
                         NavigationLink(destination: ProjectDetailView(project: project).id(project.id)) {
                             Label(project.title, systemImage: "circle.circle")
                         }
-                        .onDrag {
-                            NSItemProvider(object: "project:\(project.id)" as NSString)
-                        } preview: {
-                            Text(project.title).padding().background(Color(NSColor.windowBackgroundColor)).cornerRadius(8)
-                        }
-                        .onDrop(of: [.plainText], isTargeted: nil) { providers in
-                            return handleDrop(providers: providers, areaId: nil, projectId: project.id, store: store)
+                        .draggable("project:\(project.id)")
+                        .dropDestination(for: String.self) { items, _ in
+                            return handleDropStrings(items, areaId: nil, projectId: project.id, store: store)
                         }
                         .contextMenu {
                             Button(role: .destructive, action: {
@@ -424,11 +412,7 @@ struct TaskRowView: View {
         .sheet(isPresented: $showingDetail) {
             TaskDetailView(task: task)
         }
-        .onDrag {
-            NSItemProvider(object: "task:\(task.id)" as NSString)
-        } preview: {
-            Text(task.title).padding().background(Color(NSColor.windowBackgroundColor)).cornerRadius(8)
-        }
+        .draggable("task:\(task.id)")
         .contextMenu {
             if task.isTrashed {
                 Button(action: {
