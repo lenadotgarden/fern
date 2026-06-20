@@ -26,3 +26,21 @@ class AppStore: ObservableObject {
         }
     }
 }
+
+extension Task {
+    static func mock() -> Task {
+        return Task(
+            id: UUID().uuidString,
+            projectId: nil,
+            areaId: nil,
+            title: "Test SwiftUI Task",
+            notes: "",
+            scheduledDate: nil,
+            deadline: nil,
+            estimatedTime: nil,
+            spentTime: nil,
+            status: .todo,
+            isTrashed: false
+        )
+    }
+}

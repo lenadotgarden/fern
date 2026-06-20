@@ -17,19 +17,7 @@ final class AppStoreTests: XCTestCase {
     func testStoreLoadsInboxTasks() throws {
         // Arrange
         let store = try AppStore(inMemory: true)
-        let task = Fern.Task(
-            id: UUID().uuidString,
-            projectId: nil,
-            areaId: nil,
-            title: "Test SwiftUI Task",
-            notes: "",
-            scheduledDate: nil,
-            deadline: nil,
-            estimatedTime: nil,
-            spentTime: nil,
-            status: .todo,
-            isTrashed: false
-        )
+        let task = Fern.Task.mock()
         
         // On contourne le store pour insérer directement via l'API pour préparer le test
         try store.api.createTask(task: task)
