@@ -43,7 +43,10 @@ impl FernAPI {
     // Area API
     // =========================================================================
     pub fn update_project(&self, project: Project) -> Result<(), FernError> {
-        self.db.lock().unwrap().update_project(&project).map(|_| ()).map_err(|e| FernError::DatabaseError(e.to_string()))
+        let db = self.db.lock().unwrap();
+        db.update_project(&project).map(|_| ()).map_err(|e| FernError::DatabaseError(e.to_string()))?;
+        db.update_tasks_area_for_project(&project.id, project.area_id.as_ref()).map(|_| ()).map_err(|e| FernError::DatabaseError(e.to_string()))?;
+        Ok(())
     }
     
     pub fn create_area(&self, area: Area) -> Result<(), FernError> {
@@ -87,15 +90,25 @@ impl FernAPI {
     // =========================================================================
     // Task API
     // =========================================================================
-    pub fn create_task(&self, task: Task) -> Result<(), FernError> {
+    pub fn create_task(&self, mut task: Task) -> Result<(), FernError> {
         let db = self.db.lock().unwrap();
+        if let Some(pid) = &task.project_id {
+            if let Some(p) = db.get_project(pid).map_err(|e| FernError::DatabaseError(e.to_string()))? {
+                task.area_id = p.area_id;
+            }
+        }
         db.create_task(&task).map_err(|e| FernError::DatabaseError(e.to_string()))?;
         Ok(())
     }
     
-    pub fn update_task(&self, task: Task) -> Result<(), FernError> {
+    pub fn update_task(&self, mut task: Task) -> Result<(), FernError> {
         let db = self.db.lock().unwrap();
-        db.update_task(&task).map_err(|e| FernError::DatabaseError(e.to_string()))?;
+        if let Some(pid) = &task.project_id {
+            if let Some(p) = db.get_project(pid).map_err(|e| FernError::DatabaseError(e.to_string()))? {
+                task.area_id = p.area_id;
+            }
+        }
+        db.update_task(&task).map(|_| ()).map_err(|e| FernError::DatabaseError(e.to_string()))?;
         Ok(())
     }
 
