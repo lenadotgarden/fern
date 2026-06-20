@@ -208,22 +208,40 @@ func handleDropStrings(_ items: [String], areaId: String?, projectId: String?, s
 struct InboxView: View {
     @EnvironmentObject var store: AppStore
     @State private var showingCreateTask = false
-    @State private var newTaskTitle = ""
+    @State private var selectedItemId: String?
+    
+    func buildItems() -> [OutlineItem] {
+        return store.inboxTasks.map { task in
+            OutlineItem(id: "task:\(task.id)", title: task.title, icon: nil, itemType: .task(task))
+        }
+    }
     
     var body: some View {
-        List {
+        VStack {
             if store.inboxTasks.isEmpty {
                 Text("Your Inbox is empty! 🎉")
                     .foregroundColor(.secondary)
-                    .listRowSeparator(.hidden)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ForEach(store.inboxTasks, id: \.id) { task in
-                    TaskRowView(task: task)
-                        .listRowSeparator(.visible)
+                FernOutlineView(
+                    items: buildItems(),
+                    selectedItemId: $selectedItemId,
+                    onMove: { draggedId, targetId, index in
+                        if draggedId.hasPrefix("task:"), index >= 0 {
+                            let taskId = String(draggedId.dropFirst(5))
+                            if let sourceIndex = store.inboxTasks.firstIndex(where: { $0.id == taskId }) {
+                                store.moveTask(from: IndexSet(integer: sourceIndex), to: index, tasksContext: store.inboxTasks)
+                            }
+                        }
+                    },
+                    onValidateMove: { draggedId, targetId, index in
+                        return draggedId.hasPrefix("task:")
+                    }
+                ) { item in
+                    GroupedItemView(item: item)
                 }
             }
         }
-        .listStyle(.plain)
         .navigationTitle("Inbox")
         .toolbar {
             ToolbarItem {
@@ -702,6 +720,7 @@ struct ProjectDetailView: View {
     var project: Project
     @State private var title: String
     @State private var selectedAreaId: String?
+    @State private var selectedItemId: String?
     
     var projectTasks: [Task] {
         store.allTasks.filter { $0.projectId == project.id && !$0.isTrashed }
@@ -713,15 +732,22 @@ struct ProjectDetailView: View {
         _selectedAreaId = State(initialValue: project.areaId)
     }
     
+    func buildItems() -> [OutlineItem] {
+        return projectTasks.map { task in
+            OutlineItem(id: "task:\(task.id)", title: task.title, icon: nil, itemType: .task(task))
+        }
+    }
+    
     var body: some View {
-        List {
-            Section {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
                 TextField("Project Title", text: $title, onCommit: {
                     var updated = project
                     updated.title = title
                     store.updateProject(project: updated)
                 })
                 .font(.largeTitle.bold())
+                .textFieldStyle(PlainTextFieldStyle())
                 
                 HStack {
                     Text("Area:")
@@ -740,30 +766,40 @@ struct ProjectDetailView: View {
                     }
                 }
             }
+            .padding()
             
-            Section {
-                ForEach(projectTasks, id: \.id) { task in
-                    TaskRowView(task: task, showContext: false)
-                }
-                .onMove { source, destination in
-                    store.moveTask(from: source, to: destination, tasksContext: projectTasks)
-                }
-                
-                Button(action: {
-                    let task = Task(id: UUID().uuidString, projectId: project.id, areaId: project.areaId, title: "New Task", notes: "", scheduledDate: nil, deadline: nil, estimatedTime: nil, spentTime: nil, status: .todo, isTrashed: false, position: 0.0)
-                    do { try store.api.createTask(task: task); store.loadAllData() } catch {}
-                }) {
-                    HStack {
-                        Image(systemName: "plus")
-                        Text("New Task")
-                        Spacer()
+            FernOutlineView(
+                items: buildItems(),
+                selectedItemId: $selectedItemId,
+                onMove: { draggedId, targetId, index in
+                    if draggedId.hasPrefix("task:"), index >= 0 {
+                        let taskId = String(draggedId.dropFirst(5))
+                        if let sourceIndex = projectTasks.firstIndex(where: { $0.id == taskId }) {
+                            store.moveTask(from: IndexSet(integer: sourceIndex), to: index, tasksContext: projectTasks)
+                        }
                     }
-                    .foregroundColor(.secondary)
+                },
+                onValidateMove: { draggedId, targetId, index in
+                    return draggedId.hasPrefix("task:")
                 }
-                .buttonStyle(PlainButtonStyle())
+            ) { item in
+                GroupedItemView(item: item)
             }
+            
+            Button(action: {
+                let task = Task(id: UUID().uuidString, projectId: project.id, areaId: project.areaId, title: "New Task", notes: "", scheduledDate: nil, deadline: nil, estimatedTime: nil, spentTime: nil, status: .todo, isTrashed: false, position: 0.0)
+                do { try store.api.createTask(task: task); store.loadAllData() } catch {}
+            }) {
+                HStack {
+                    Image(systemName: "plus")
+                    Text("New Task")
+                    Spacer()
+                }
+                .foregroundColor(.secondary)
+                .padding()
+            }
+            .buttonStyle(PlainButtonStyle())
         }
-        .listStyle(.plain)
         .navigationTitle(project.title)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

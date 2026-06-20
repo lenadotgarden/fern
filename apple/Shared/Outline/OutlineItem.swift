@@ -23,4 +23,15 @@ class OutlineItem: NSObject {
         self.itemType = itemType
         self.children = children
     }
+    
+    override var hash: Int {
+        var hasher = Hasher()
+        hasher.combine(id)
+        return hasher.finalize()
+    }
+    
+    override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? OutlineItem else { return false }
+        return self.id == other.id
+    }
 }
