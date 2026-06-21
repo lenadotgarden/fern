@@ -195,6 +195,8 @@ pub struct Area {
     /// Archived areas are hidden but never deleted. All their projects and tasks
     /// remain queryable and are preserved for history and future sync.
     pub is_archived: bool,
+    /// Manual sort order. Fractional indexing is used for efficient reordering.
+    pub position: f64,
 }
 
 impl Area {
@@ -204,6 +206,7 @@ impl Area {
             title: title.into(),
             notes: String::new(),
             is_archived: false,
+            position: 0.0,
         }
     }
 }
@@ -237,6 +240,8 @@ pub struct Project {
     /// If true, the project is in the Trash. Independent of `status`:
     /// a Done project can also be trashed (and vice-versa).
     pub is_trashed: bool,
+    /// Manual sort order.
+    pub position: f64,
 }
 
 impl Project {
@@ -250,6 +255,7 @@ impl Project {
             deadline: None,
             status: ProjectStatus::Todo,
             is_trashed: false,
+            position: 0.0,
         }
     }
 }
@@ -293,6 +299,8 @@ pub struct Task {
     pub status: TaskStatus,
     /// If true, the task is in the Trash. Independent of `status`.
     pub is_trashed: bool,
+    /// Sorting position for manual ordering
+    pub position: f64,
 }
 
 impl Task {
@@ -311,6 +319,7 @@ impl Task {
             spent_time: None,
             status: TaskStatus::Todo,
             is_trashed: false,
+            position: 0.0,
         }
     }
 }
