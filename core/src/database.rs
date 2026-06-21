@@ -99,9 +99,18 @@ impl Database {
         )?;
 
         // Simple migrations for existing databases
-        let _ = self.conn.execute("ALTER TABLE areas ADD COLUMN position REAL NOT NULL DEFAULT 0.0", []);
-        let _ = self.conn.execute("ALTER TABLE projects ADD COLUMN position REAL NOT NULL DEFAULT 0.0", []);
-        let _ = self.conn.execute("ALTER TABLE tasks ADD COLUMN position REAL NOT NULL DEFAULT 0.0", []);
+        let _ = self.conn.execute(
+            "ALTER TABLE areas ADD COLUMN position REAL NOT NULL DEFAULT 0.0",
+            [],
+        );
+        let _ = self.conn.execute(
+            "ALTER TABLE projects ADD COLUMN position REAL NOT NULL DEFAULT 0.0",
+            [],
+        );
+        let _ = self.conn.execute(
+            "ALTER TABLE tasks ADD COLUMN position REAL NOT NULL DEFAULT 0.0",
+            [],
+        );
 
         Ok(())
     }
@@ -133,21 +142,25 @@ impl Database {
         let mut stmt = self
             .conn
             .prepare("SELECT id, title, notes, is_archived, position FROM areas WHERE is_archived = 0 ORDER BY position ASC")?;
-        let rows = stmt.query_map([], |row| {
-            Ok(Area {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                notes: row.get(2)?,
-                is_archived: row.get::<_, i32>(3)? != 0,
-                position: row.get(4)?,
-            })
-        })?.collect();
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(Area {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    notes: row.get(2)?,
+                    is_archived: row.get::<_, i32>(3)? != 0,
+                    position: row.get(4)?,
+                })
+            })?
+            .collect();
         rows
     }
 
     /// Returns every area, including archived ones — use for settings screens.
     pub fn get_all_areas(&self) -> SqlResult<Vec<Area>> {
-        let mut stmt = self.conn.prepare(&format!("{} ORDER BY position ASC", AREA_SELECT))?;
+        let mut stmt = self
+            .conn
+            .prepare(&format!("{} ORDER BY position ASC", AREA_SELECT))?;
         let rows = stmt.query_map([], map_area_row)?.collect();
         rows
     }
@@ -181,9 +194,12 @@ impl Database {
     /// delete will also cascade-orphan any child projects and tasks if FK
     /// constraints are not enforced at call time.
     pub fn delete_area(&self, id: &str) -> SqlResult<usize> {
-        self.conn.execute("DELETE FROM tasks WHERE area_id = ?1", params![id])?;
-        self.conn.execute("DELETE FROM projects WHERE area_id = ?1", params![id])?;
-        self.conn.execute("DELETE FROM areas WHERE id = ?1", params![id])
+        self.conn
+            .execute("DELETE FROM tasks WHERE area_id = ?1", params![id])?;
+        self.conn
+            .execute("DELETE FROM projects WHERE area_id = ?1", params![id])?;
+        self.conn
+            .execute("DELETE FROM areas WHERE id = ?1", params![id])
     }
 
     // =========================================================================
@@ -221,7 +237,9 @@ impl Database {
 
     /// Returns every project (all statuses, including trashed).
     pub fn get_all_projects(&self) -> SqlResult<Vec<Project>> {
-        let mut stmt = self.conn.prepare(&format!("{} ORDER BY position ASC", PROJECT_SELECT))?;
+        let mut stmt = self
+            .conn
+            .prepare(&format!("{} ORDER BY position ASC", PROJECT_SELECT))?;
         let rows = stmt.query_map([], Self::map_project_row)?.collect();
         rows
     }
@@ -278,12 +296,14 @@ impl Database {
 
     /// Hard-deletes a Task.
     pub fn delete_task(&self, id: &str) -> SqlResult<usize> {
-        self.conn.execute("DELETE FROM tasks WHERE id = ?1", params![id])
+        self.conn
+            .execute("DELETE FROM tasks WHERE id = ?1", params![id])
     }
 
     /// Hard-deletes a Project, cascading to delete all its tasks.
     pub fn delete_project(&self, id: &str) -> SqlResult<usize> {
-        self.conn.execute("DELETE FROM projects WHERE id = ?1", params![id])
+        self.conn
+            .execute("DELETE FROM projects WHERE id = ?1", params![id])
     }
 
     /// Recovers a trashed Project, making it visible again in its previous view.
@@ -336,9 +356,10 @@ impl Database {
 
     /// **Trash** — soft-deleted projects.
     pub fn get_trashed_projects(&self) -> SqlResult<Vec<Project>> {
-        let mut stmt = self
-            .conn
-            .prepare(&format!("{} WHERE is_trashed = 1 ORDER BY position ASC", PROJECT_SELECT))?;
+        let mut stmt = self.conn.prepare(&format!(
+            "{} WHERE is_trashed = 1 ORDER BY position ASC",
+            PROJECT_SELECT
+        ))?;
         let rows = stmt.query_map([], Self::map_project_row)?.collect();
         rows
     }
@@ -355,7 +376,10 @@ impl Database {
             deadline: row
                 .get::<_, Option<String>>(5)?
                 .and_then(|s| chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok()),
-            status: row.get::<_, String>(6)?.parse().unwrap_or(ProjectStatus::Todo),
+            status: row
+                .get::<_, String>(6)?
+                .parse()
+                .unwrap_or(ProjectStatus::Todo),
             is_trashed: row.get::<_, i32>(7)? != 0,
             position: row.get(8)?,
         })
@@ -404,7 +428,9 @@ impl Database {
 
     /// Returns every task (all statuses, including trashed).
     pub fn get_all_tasks(&self) -> SqlResult<Vec<Task>> {
-        let mut stmt = self.conn.prepare(&format!("{} ORDER BY position ASC", TASK_SELECT))?;
+        let mut stmt = self
+            .conn
+            .prepare(&format!("{} ORDER BY position ASC", TASK_SELECT))?;
         let rows = stmt.query_map([], map_task_row)?.collect();
         rows
     }
@@ -570,9 +596,10 @@ impl Database {
 
     /// **Trash** — soft-deleted tasks.
     pub fn get_trashed_tasks(&self) -> SqlResult<Vec<Task>> {
-        let mut stmt = self
-            .conn
-            .prepare(&format!("{} WHERE is_trashed = 1 ORDER BY position ASC", TASK_SELECT))?;
+        let mut stmt = self.conn.prepare(&format!(
+            "{} WHERE is_trashed = 1 ORDER BY position ASC",
+            TASK_SELECT
+        ))?;
         let rows = stmt.query_map([], map_task_row)?.collect();
         rows
     }
@@ -1200,7 +1227,8 @@ mod tests {
             id: "ghost".to_string(),
             title: "Ghost".to_string(),
             notes: String::new(),
-            is_archived: false, position: 0.0,
+            is_archived: false,
+            position: 0.0,
         };
         assert_eq!(db.update_area(&ghost).unwrap(), 0);
     }

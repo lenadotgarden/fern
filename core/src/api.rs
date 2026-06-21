@@ -322,7 +322,6 @@ impl FernAPI {
 mod tests {
     use super::*;
     use crate::models::{Area, Project, Task};
-    
 
     #[test]
     fn test_api_initialization() {
