@@ -8,12 +8,28 @@
 
 /* Begin PBXBuildFile section */
 		1ADE7684C194AEB621ADA7A1 /* FernOutlineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15EAD768B6E06FC13FD335E5 /* FernOutlineView.swift */; };
+		27A3D060FECADB5EB4FB8A92 /* CreateTaskSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8C5A2A968C4332F609AE62A /* CreateTaskSheet.swift */; };
+		2A592A6E542AF842C268C0A1 /* LogbookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA28F9A00CC344D52B8C9D91 /* LogbookView.swift */; };
+		2DA4C3B40ABE77DFF890BFD9 /* AnytimeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32306CC1D7538FD96BE07592 /* AnytimeView.swift */; };
+		34AA93ED20FD51CC0E325345 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251C6E5689C00CF5B38D22CD /* TodayView.swift */; };
+		41EAAAB26A58153ECE59E84D /* GroupedTasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06A5A3B8951864985C85C18C /* GroupedTasksView.swift */; };
 		5F24E2EA1E8DAED13B548DF3 /* OutlineItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53516F87E6B0874C0106A475 /* OutlineItem.swift */; };
-		FA40336B2FE6169A00287A3B /* MainContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA40336A2FE6169A00287A3B /* MainContentView.swift */; };
+		6A63F5ADBB4BFA2C88AA2BFE /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A25C65E042DD7AEE49D41CC /* InboxView.swift */; };
+		6DFA75F7D747DE31BC75BB76 /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 148AA5E44F88287EAE3326B4 /* ProjectDetailView.swift */; };
+		72C7169731120605134AB3B1 /* TaskDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9DFF549360CC8542D881478 /* TaskDetailView.swift */; };
+		72CE34A1F4B3054E4793E077 /* UpcomingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E174F108E19B2CCF51C1E3A /* UpcomingView.swift */; };
+		84DB7DD02CC65DD33EF13C06 /* DropHandlers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98EFAF6A1B2A1420A199D5E1 /* DropHandlers.swift */; };
+		86B85F0E96A1E05B168AE816 /* GroupedItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37B3C544DAF28432E5D6F79F /* GroupedItemView.swift */; };
+		A82C6CC2443BD9D30724F294 /* AreaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 591D46200904E930015C24CC /* AreaDetailView.swift */; };
+		B05F284BB95952B2FAE1C3DF /* SomedayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 169D3AC1D7F6B134EE7A47DA /* SomedayView.swift */; };
+		C437BC49E5CE057C4CF6FA0E /* MainContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13151277E5812E834DA06AA9 /* MainContentView.swift */; };
+		DD2068C2FAEAA322DB79C1C1 /* TaskRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8F5CA2097A4EF23657E528B /* TaskRowView.swift */; };
+		EB97B80A672EFAD8AE7F9EC2 /* SidebarItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BABF2B2672B029150733CCD3 /* SidebarItemView.swift */; };
 		FA519DE42FE5EE9800129308 /* FernApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA519DE32FE5EE9800129308 /* FernApp.swift */; };
 		FA6C1C692FE607800072D9F9 /* fern_core.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6C1C682FE607800072D9F9 /* fern_core.swift */; };
 		FA6C1C6F2FE609720072D9F9 /* FernCore.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA6C1C6E2FE609720072D9F9 /* FernCore.xcframework */; };
 		FA6C1C802FE60C850072D9F9 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6C1C7F2FE60C850072D9F9 /* AppStore.swift */; };
+		FD6284EA0FF650F31850FA03 /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86B9F8AA720880C751281012 /* TrashView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,9 +44,25 @@
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* Fern.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fern.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		06A5A3B8951864985C85C18C /* GroupedTasksView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupedTasksView.swift; sourceTree = "<group>"; };
+		0A25C65E042DD7AEE49D41CC /* InboxView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
+		13151277E5812E834DA06AA9 /* MainContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MainContentView.swift; sourceTree = "<group>"; };
+		148AA5E44F88287EAE3326B4 /* ProjectDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProjectDetailView.swift; sourceTree = "<group>"; };
 		15EAD768B6E06FC13FD335E5 /* FernOutlineView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FernOutlineView.swift; sourceTree = "<group>"; };
+		169D3AC1D7F6B134EE7A47DA /* SomedayView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SomedayView.swift; sourceTree = "<group>"; };
+		251C6E5689C00CF5B38D22CD /* TodayView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		32306CC1D7538FD96BE07592 /* AnytimeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AnytimeView.swift; sourceTree = "<group>"; };
+		37B3C544DAF28432E5D6F79F /* GroupedItemView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupedItemView.swift; sourceTree = "<group>"; };
 		53516F87E6B0874C0106A475 /* OutlineItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OutlineItem.swift; sourceTree = "<group>"; };
-		FA40336A2FE6169A00287A3B /* MainContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainContentView.swift; sourceTree = "<group>"; };
+		591D46200904E930015C24CC /* AreaDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AreaDetailView.swift; sourceTree = "<group>"; };
+		6E174F108E19B2CCF51C1E3A /* UpcomingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UpcomingView.swift; sourceTree = "<group>"; };
+		86B9F8AA720880C751281012 /* TrashView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
+		98EFAF6A1B2A1420A199D5E1 /* DropHandlers.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DropHandlers.swift; sourceTree = "<group>"; };
+		A9DFF549360CC8542D881478 /* TaskDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskDetailView.swift; sourceTree = "<group>"; };
+		BABF2B2672B029150733CCD3 /* SidebarItemView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SidebarItemView.swift; sourceTree = "<group>"; };
+		C8F5CA2097A4EF23657E528B /* TaskRowView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskRowView.swift; sourceTree = "<group>"; };
+		D8C5A2A968C4332F609AE62A /* CreateTaskSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CreateTaskSheet.swift; sourceTree = "<group>"; };
+		EA28F9A00CC344D52B8C9D91 /* LogbookView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LogbookView.swift; sourceTree = "<group>"; };
 		FA519DE32FE5EE9800129308 /* FernApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FernApp.swift; sourceTree = "<group>"; };
 		FA6C1C682FE607800072D9F9 /* fern_core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = fern_core.swift; sourceTree = "<group>"; };
 		FA6C1C6E2FE609720072D9F9 /* FernCore.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = FernCore.xcframework; sourceTree = "<group>"; };
@@ -94,6 +126,76 @@
 			path = Outline;
 			sourceTree = "<group>";
 		};
+		3A9E3D2E2942548CC8C8A8FC /* Sidebar */ = {
+			isa = PBXGroup;
+			children = (
+				BABF2B2672B029150733CCD3 /* SidebarItemView.swift */,
+			);
+			name = Sidebar;
+			path = Sidebar;
+			sourceTree = "<group>";
+		};
+		74FE7C6C4EF34A4630347E74 /* Project */ = {
+			isa = PBXGroup;
+			children = (
+				148AA5E44F88287EAE3326B4 /* ProjectDetailView.swift */,
+			);
+			name = Project;
+			path = Project;
+			sourceTree = "<group>";
+		};
+		762834C77C57D09C6D93BA26 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				98EFAF6A1B2A1420A199D5E1 /* DropHandlers.swift */,
+				86B9F8AA720880C751281012 /* TrashView.swift */,
+				13151277E5812E834DA06AA9 /* MainContentView.swift */,
+			);
+			name = Core;
+			path = Core;
+			sourceTree = "<group>";
+		};
+		9BC3E8190E913C88159D79D8 /* Task */ = {
+			isa = PBXGroup;
+			children = (
+				D8C5A2A968C4332F609AE62A /* CreateTaskSheet.swift */,
+				C8F5CA2097A4EF23657E528B /* TaskRowView.swift */,
+				169D3AC1D7F6B134EE7A47DA /* SomedayView.swift */,
+				06A5A3B8951864985C85C18C /* GroupedTasksView.swift */,
+				6E174F108E19B2CCF51C1E3A /* UpcomingView.swift */,
+				0A25C65E042DD7AEE49D41CC /* InboxView.swift */,
+				EA28F9A00CC344D52B8C9D91 /* LogbookView.swift */,
+				A9DFF549360CC8542D881478 /* TaskDetailView.swift */,
+				32306CC1D7538FD96BE07592 /* AnytimeView.swift */,
+				251C6E5689C00CF5B38D22CD /* TodayView.swift */,
+				37B3C544DAF28432E5D6F79F /* GroupedItemView.swift */,
+			);
+			name = Task;
+			path = Task;
+			sourceTree = "<group>";
+		};
+		BF20F71293FED36623FE7208 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				3A9E3D2E2942548CC8C8A8FC /* Sidebar */,
+				762834C77C57D09C6D93BA26 /* Core */,
+				D884C96FEAE928140A1DCB51 /* Area */,
+				74FE7C6C4EF34A4630347E74 /* Project */,
+				9BC3E8190E913C88159D79D8 /* Task */,
+			);
+			name = Views;
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D884C96FEAE928140A1DCB51 /* Area */ = {
+			isa = PBXGroup;
+			children = (
+				591D46200904E930015C24CC /* AreaDetailView.swift */,
+			);
+			name = Area;
+			path = Area;
+			sourceTree = "<group>";
+		};
 		FA519DE02FE5EE6800129308 /* iOS */ = {
 			isa = PBXGroup;
 			children = (
@@ -111,11 +213,11 @@
 		FA519DE22FE5EE6800129308 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
-				FA40336A2FE6169A00287A3B /* MainContentView.swift */,
 				FA6C1C7F2FE60C850072D9F9 /* AppStore.swift */,
 				FA6C1C682FE607800072D9F9 /* fern_core.swift */,
 				FA519DE32FE5EE9800129308 /* FernApp.swift */,
 				1F45CEA27F09E95A2B7CA9B0 /* Outline */,
+				BF20F71293FED36623FE7208 /* Views */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -228,10 +330,26 @@
 			files = (
 				FA6C1C802FE60C850072D9F9 /* AppStore.swift in Sources */,
 				FA519DE42FE5EE9800129308 /* FernApp.swift in Sources */,
-				FA40336B2FE6169A00287A3B /* MainContentView.swift in Sources */,
 				FA6C1C692FE607800072D9F9 /* fern_core.swift in Sources */,
 				5F24E2EA1E8DAED13B548DF3 /* OutlineItem.swift in Sources */,
 				1ADE7684C194AEB621ADA7A1 /* FernOutlineView.swift in Sources */,
+				EB97B80A672EFAD8AE7F9EC2 /* SidebarItemView.swift in Sources */,
+				84DB7DD02CC65DD33EF13C06 /* DropHandlers.swift in Sources */,
+				FD6284EA0FF650F31850FA03 /* TrashView.swift in Sources */,
+				C437BC49E5CE057C4CF6FA0E /* MainContentView.swift in Sources */,
+				A82C6CC2443BD9D30724F294 /* AreaDetailView.swift in Sources */,
+				6DFA75F7D747DE31BC75BB76 /* ProjectDetailView.swift in Sources */,
+				27A3D060FECADB5EB4FB8A92 /* CreateTaskSheet.swift in Sources */,
+				DD2068C2FAEAA322DB79C1C1 /* TaskRowView.swift in Sources */,
+				B05F284BB95952B2FAE1C3DF /* SomedayView.swift in Sources */,
+				41EAAAB26A58153ECE59E84D /* GroupedTasksView.swift in Sources */,
+				72CE34A1F4B3054E4793E077 /* UpcomingView.swift in Sources */,
+				6A63F5ADBB4BFA2C88AA2BFE /* InboxView.swift in Sources */,
+				2A592A6E542AF842C268C0A1 /* LogbookView.swift in Sources */,
+				72C7169731120605134AB3B1 /* TaskDetailView.swift in Sources */,
+				2DA4C3B40ABE77DFF890BFD9 /* AnytimeView.swift in Sources */,
+				34AA93ED20FD51CC0E325345 /* TodayView.swift in Sources */,
+				86B85F0E96A1E05B168AE816 /* GroupedItemView.swift in Sources */,
 			);
 		};
 		FA6C1C702FE60AD80072D9F9 /* Sources */ = {

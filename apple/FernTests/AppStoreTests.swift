@@ -6,7 +6,7 @@ final class AppStoreTests: XCTestCase {
 
     func testStoreInitialization() throws {
         // Arrange & Act
-        // On initialise le store avec une DB en mémoire pour éviter d'écrire sur le vrai disque
+        // Initialize the store with an in-memory DB to avoid writing to the real disk
         let store = try AppStore(inMemory: true)
         
         // Assert
@@ -19,7 +19,7 @@ final class AppStoreTests: XCTestCase {
         let store = try AppStore(inMemory: true)
         let task = Fern.Task.mock()
         
-        // On contourne le store pour insérer directement via l'API pour préparer le test
+        // Bypass the store to insert directly via the API to prepare the test
         try store.api.createTask(task: task)
         
         // Act
