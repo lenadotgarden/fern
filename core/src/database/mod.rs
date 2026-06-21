@@ -1,5 +1,5 @@
-use rusqlite::params;
 use crate::models::*;
+use rusqlite::params;
 use rusqlite::{Connection, Result as SqlResult};
 
 pub struct Database {
@@ -73,9 +73,18 @@ impl Database {
         ",
         )?;
 
-        let _ = self.conn.execute("ALTER TABLE areas ADD COLUMN position REAL NOT NULL DEFAULT 0.0", []);
-        let _ = self.conn.execute("ALTER TABLE projects ADD COLUMN position REAL NOT NULL DEFAULT 0.0", []);
-        let _ = self.conn.execute("ALTER TABLE tasks ADD COLUMN position REAL NOT NULL DEFAULT 0.0", []);
+        let _ = self.conn.execute(
+            "ALTER TABLE areas ADD COLUMN position REAL NOT NULL DEFAULT 0.0",
+            [],
+        );
+        let _ = self.conn.execute(
+            "ALTER TABLE projects ADD COLUMN position REAL NOT NULL DEFAULT 0.0",
+            [],
+        );
+        let _ = self.conn.execute(
+            "ALTER TABLE tasks ADD COLUMN position REAL NOT NULL DEFAULT 0.0",
+            [],
+        );
         Ok(())
     }
 }
