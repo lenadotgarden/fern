@@ -321,8 +321,8 @@ impl FernAPI {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Area, Project, ScheduledDate, Task};
-    use chrono::Local;
+    use crate::models::{Area, Project, Task};
+    
 
     #[test]
     fn test_api_initialization() {
